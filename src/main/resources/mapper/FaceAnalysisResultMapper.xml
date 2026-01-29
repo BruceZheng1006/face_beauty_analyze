@@ -8,14 +8,13 @@
         <result column="image_path" property="imagePath" jdbcType="VARCHAR"/>
         <result column="analysis_json" property="analysisJson" jdbcType="LONGVARCHAR"/>
         <result column="face_count" property="faceCount" jdbcType="INTEGER"/>
-        <result column="analysis_status" property="analysisStatus" jdbcType="TINYINT"/>
         <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
         <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id, image_name, image_path, analysis_json, 
-        face_count, analysis_status, created_time, updated_time
+        face_count, created_time, updated_time
     </sql>
 
     <insert id="insert" parameterType="com.facebeauty.face_beauty_analyze.entity.FaceAnalysisResult">
@@ -25,14 +24,12 @@
             <if test="imagePath != null">image_path,</if>
             <if test="analysisJson != null">analysis_json,</if>
             <if test="faceCount != null">face_count,</if>
-            <if test="analysisStatus != null">analysis_status,</if>
         </trim>
         <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
             <if test="imageName != null">#{imageName,jdbcType=VARCHAR},</if>
             <if test="imagePath != null">#{imagePath,jdbcType=VARCHAR},</if>
             <if test="analysisJson != null">#{analysisJson,jdbcType=LONGVARCHAR},</if>
             <if test="faceCount != null">#{faceCount,jdbcType=INTEGER},</if>
-            <if test="analysisStatus != null">#{analysisStatus,jdbcType=TINYINT},</if>
         </trim>
     </insert>
 
@@ -72,9 +69,6 @@
             </if>
             <if test="faceCount != null">
                 face_count = #{faceCount,jdbcType=INTEGER},
-            </if>
-            <if test="analysisStatus != null">
-                analysis_status = #{analysisStatus,jdbcType=TINYINT},
             </if>
             <if test="updatedTime != null">
                 updated_time = #{updatedTime,jdbcType=TIMESTAMP},

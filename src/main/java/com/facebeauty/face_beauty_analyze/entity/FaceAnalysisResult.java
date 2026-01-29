@@ -19,8 +19,6 @@ public class FaceAnalysisResult {
 
     private Integer faceCount; // 检测到的人脸数量
 
-    private Integer analysisStatus; // 分析状态：1-成功，0-失败
-
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdTime; // 创建时间
 

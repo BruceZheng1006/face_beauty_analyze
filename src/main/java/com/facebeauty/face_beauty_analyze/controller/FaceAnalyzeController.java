@@ -96,7 +96,6 @@ public class FaceAnalyzeController {
         faceAnalysisResult.setImageName(originalFileName); // 保存原始文件名
         faceAnalysisResult.setImagePath(originalFile.getAbsolutePath()); // 保存唯一命名的原始文件的完整路径
         faceAnalysisResult.setAnalysisJson(jsonResult);
-        faceAnalysisResult.setAnalysisStatus(1); // 成功
         
         // 从原始Python输出中提取人脸数量
         int faceCount = extractFaceCountFromOutput(pythonResult);
