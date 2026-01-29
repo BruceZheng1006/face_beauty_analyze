@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Bias人脸分析工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 0 20px;
+        }
+        .form-container {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        input[type="file"] {
+            width: 600px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #42b983;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #359469;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result-container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            font-size: 14px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .json-result {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .analysis-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fafafa;
+        }
+        .analysis-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .analysis-item {
+            margin: 5px 0;
+            padding: 5px;
+            background-color: white;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+<h1>Bias人脸分析工具</h1>
+<div class="form-container">
+    <h3>选择本地的图片文件（支持jpg/jpeg/png）</h3>
+    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png">
+    <button id="analyzeBtn" onclick="uploadAndAnalyze()">上传并分析</button>
+</div>
+<div class="result-container" id="result">🔍 选择图片后点击「上传并分析」，结果将显示在这里...</div>
+
+<script>
+    // 上传文件并调用后端接口
+    function uploadAndAnalyze() {
+        const fileInput = document.getElementById("fileInput");
+        const resultDiv = document.getElementById("result");
+        const analyzeBtn = document.getElementById("analyzeBtn");
+        const file = fileInput.files[0];
+
+        // 校验是否选择了文件
+        if (!file) {
+            resultDiv.innerHTML = "❌ 请先选择要上传的图片文件！";
+            return;
+        }
+
+        // 禁用按钮并显示加载状态
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = "分析中...";
+        resultDiv.innerHTML = "⏳ 正在分析中，请稍候...";
+
+        // 构建FormData，用于上传文件
+        const formData = new FormData();
+        formData.append("file", file);
+
+        // 发送POST请求上传文件并处理
+        fetch("/analyze/upload", {
+            method: "POST",
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = formatAnalysisResult(data.data);
+                } else {
+                    resultDiv.innerHTML = data.message || "❌ 分析失败";
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = "❌ 请求后端接口失败：" + error.message;
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = "上传并分析";
+            });
+    }
+
+    // 格式化分析结果
+    function formatAnalysisResult(jsonStr) {
+        try {
+            const data = JSON.parse(jsonStr);
+            let html = '<div class="json-result">';
+            
+            // 显示基本信息
+            html += '<div class="analysis-section">';
+            html += '<div class="analysis-title">📊 分析概览</div>';
+            html += `<div class="analysis-item">📋 分析数据已加载</div>`;
+            html += '</div>';
+                            
+            // 因为现在直接返回分析数据，所以使用data作为items
+            for (const [section, items] of Object.entries(data)) {
+                html += '<div class="analysis-section">';
+                html += `<div class="analysis-title">📏 ${section}</div>`;
+                
+                for (const [key, value] of Object.entries(items)) {
+                    html += `<div class="analysis-item">${key}: ${typeof value === 'number' ? value.toFixed(2) : value}</div>`;
+                }
+                html += '</div>';
+            }
+            
+            // 移除原始输出显示部分，因为我们现在只返回分析数据
+            html += '</div>';
+            return html;
+        } catch (e) {
+            return `<div class="json-result">解析结果失败: ${e.message}</div>`;
+        }
+    }
+</script>
+</body>
+</html>
