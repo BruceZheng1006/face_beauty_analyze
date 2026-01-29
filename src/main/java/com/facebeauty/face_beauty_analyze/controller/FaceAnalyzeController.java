@@ -95,11 +95,13 @@ public class FaceAnalyzeController {
         FaceAnalysisResult faceAnalysisResult = new FaceAnalysisResult();
         faceAnalysisResult.setImageName(originalFileName); // 保存原始文件名
         faceAnalysisResult.setImagePath(originalFile.getAbsolutePath()); // 保存唯一命名的原始文件的完整路径
-        faceAnalysisResult.setAnalysisJson(jsonResult);
         
         // 从原始Python输出中提取人脸数量
         int faceCount = extractFaceCountFromOutput(pythonResult);
         faceAnalysisResult.setFaceCount(faceCount);
+        
+        // 如果没有人脸，也要保存分析结果
+        faceAnalysisResult.setAnalysisJson(jsonResult);
 
         // 7. 保存到数据库
         int saveResult = faceAnalysisResultService.saveFaceAnalysisResult(faceAnalysisResult);
@@ -161,6 +163,10 @@ public class FaceAnalyzeController {
             line = line.trim();
             if (line.contains("第") && line.contains("张人脸")) {
                 faceCount++;
+            }
+            // 如果发现没有检测到人脸的信息，直接返回0
+            if (line.contains("未检测到人脸") || line.contains("ERR_NO_FACE_DETECTED")) {
+                return 0;
             }
         }
         

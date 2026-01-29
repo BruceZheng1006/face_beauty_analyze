@@ -106,6 +106,13 @@ public class PythonFaceAnalyzeUtil {
                     continue;
                 }
                 
+                // 检查是否包含未检测到人脸的错误信息
+                if (line.contains("未检测到人脸") || line.contains("ERR_NO_FACE_DETECTED")) {
+                    // 返回空的JSON对象表示没有检测到人脸
+                    ObjectNode emptyNode = mapper.createObjectNode();
+                    return mapper.writeValueAsString(emptyNode);
+                }
+                
                 // 检查是否是新的分析部分
                 if (line.startsWith("●")) {
                     currentSection = line.replace("●", "").trim();

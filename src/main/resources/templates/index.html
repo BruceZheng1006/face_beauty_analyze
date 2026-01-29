@@ -138,6 +138,12 @@
     function formatAnalysisResult(jsonStr) {
         try {
             const data = JSON.parse(jsonStr);
+            
+            // 检查是否为空对象，表示未检测到人脸
+            if (Object.keys(data).length === 0) {
+                return `<div class="json-result"><div class="analysis-section"><div class="analysis-title">❌ 分析失败</div><div class="analysis-item">⚠️ 未检测到人脸</div></div></div>`;
+            }
+            
             let html = '<div class="json-result">';
             
             // 显示基本信息
