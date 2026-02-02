@@ -36,7 +36,7 @@ public class FaceAnalyzeController {
 
     // 2. 新增：文件上传并处理接口
     @PostMapping("/analyze/upload")
-    public Map<String, Object> analyzeUploadedFile(@RequestParam("file") MultipartFile file) {
+    public Map<String, Object> analyzeUploadedFile(@RequestParam("file") MultipartFile file, @RequestParam("gender") String gender) {
         Map<String, Object> result = new HashMap<>();
         
         // 1. 校验上传文件是否为空
@@ -85,8 +85,8 @@ public class FaceAnalyzeController {
             return result;
         }
 
-        // 4. 调用Python脚本处理临时文件（传入临时文件的绝对路径）
-        String pythonResult = PythonFaceAnalyzeUtil.callFaceAnalysisPython(tempFile.getAbsolutePath());
+        // 4. 根据性别调用不同的Python脚本处理临时文件
+        String pythonResult = PythonFaceAnalyzeUtil.callFaceAnalysisPython(tempFile.getAbsolutePath(), gender);
         
         // 5. 将Python结果解析为JSON格式
         String jsonResult = PythonFaceAnalyzeUtil.parsePythonOutputToJson(pythonResult);

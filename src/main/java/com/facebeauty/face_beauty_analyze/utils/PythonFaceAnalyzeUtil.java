@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
  */
 public class PythonFaceAnalyzeUtil {
     // 1. 配置关键路径（保持你原来的路径不变，根据实际情况修改）
-    private static final String PYTHON_SCRIPT_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBound.py";
+    private static final String PYTHON_SCRIPT_MALE_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBoundForMale.py";
+    private static final String PYTHON_SCRIPT_FEMALE_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBoundForFemale.py";
     private static final String PYTHON_COMMAND = "python";
 
     /**
@@ -25,14 +26,35 @@ public class PythonFaceAnalyzeUtil {
      * @return Python的所有打印输出内容
      */
     public static String callFaceAnalysisPython(String inputPath) {
+        return callFaceAnalysisPython(inputPath, "male"); // 默认为男性
+    }
+    
+    /**
+     * 根据性别调用Python脚本，获取所有打印输出结果
+     * @param inputPath 传入的图片路径/文件夹路径
+     * @param gender 性别（"male" 或 "female"）
+     * @return Python的所有打印输出内容
+     */
+    public static String callFaceAnalysisPython(String inputPath, String gender) {
         // 空值校验，避免空指针
         if (inputPath == null || inputPath.trim().isEmpty()) {
             return "❌ 传入的路径不能为空！";
         }
+        
+        if (gender == null || gender.trim().isEmpty()) {
+            gender = "male"; // 默认为男性
+        }
 
         List<String> command = new ArrayList<>();
         command.add(PYTHON_COMMAND);
-        command.add(PYTHON_SCRIPT_PATH);
+        
+        // 根据性别选择不同的Python脚本
+        if ("female".equalsIgnoreCase(gender)) {
+            command.add(PYTHON_SCRIPT_FEMALE_PATH);
+        } else {
+            command.add(PYTHON_SCRIPT_MALE_PATH);
+        }
+        
         command.add(inputPath);
 
         StringBuilder pythonOutput = new StringBuilder();

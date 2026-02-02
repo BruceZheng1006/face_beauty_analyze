@@ -17,12 +17,10 @@
             border-radius: 4px;
         }
         input[type="file"] {
-            width: 600px;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            margin-bottom: 15px;
         }
         button {
             padding: 10px 20px;
@@ -83,8 +81,21 @@
 <h1>Bias人脸分析工具</h1>
 <div class="form-container">
     <h3>选择本地的图片文件（支持jpg/jpeg/png）</h3>
-    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png">
-    <button id="analyzeBtn" onclick="uploadAndAnalyze()">上传并分析</button>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" style="flex: 1; min-width: 300px;">
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+        <div style="margin: 0 10px;">
+            <label for="genderSelect">选择性别：</label>
+            <select id="genderSelect" style="padding: 5px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="male">男</option>
+                <option value="female">女</option>
+            </select>
+        </div>
+    </div>
+    <div style="display: flex; justify-content: flex-start; margin-top: 20px;">
+        <button id="analyzeBtn" onclick="uploadAndAnalyze()" style="white-space: nowrap;">上传并分析</button>
+    </div>
 </div>
 <div class="result-container" id="result">🔍 选择图片后点击「上传并分析」，结果将显示在这里...</div>
 
@@ -110,6 +121,10 @@
         // 构建FormData，用于上传文件
         const formData = new FormData();
         formData.append("file", file);
+        
+        // 获取性别选择
+        const gender = document.getElementById("genderSelect").value;
+        formData.append("gender", gender);
 
         // 发送POST请求上传文件并处理
         fetch("/analyze/upload", {
