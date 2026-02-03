@@ -16,8 +16,7 @@ import java.util.regex.Pattern;
  */
 public class PythonFaceAnalyzeUtil {
     // 1. 配置关键路径（保持你原来的路径不变，根据实际情况修改）
-    private static final String PYTHON_SCRIPT_MALE_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBoundForMale.py";
-    private static final String PYTHON_SCRIPT_FEMALE_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBoundForFemale.py";
+    private static final String PYTHON_SCRIPT_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBound_gender.py";
     private static final String PYTHON_COMMAND = "python";
 
     /**
@@ -47,15 +46,9 @@ public class PythonFaceAnalyzeUtil {
 
         List<String> command = new ArrayList<>();
         command.add(PYTHON_COMMAND);
-        
-        // 根据性别选择不同的Python脚本
-        if ("female".equalsIgnoreCase(gender)) {
-            command.add(PYTHON_SCRIPT_FEMALE_PATH);
-        } else {
-            command.add(PYTHON_SCRIPT_MALE_PATH);
-        }
-        
+        command.add(PYTHON_SCRIPT_PATH);
         command.add(inputPath);
+        command.add(gender);  // 添加性别参数
 
         StringBuilder pythonOutput = new StringBuilder();
         Process process = null;
@@ -100,7 +93,7 @@ public class PythonFaceAnalyzeUtil {
 
         return pythonOutput.toString();
     }
-
+    
     /**
      * 解析Python脚本输出，转换为JSON格式
      * @param pythonOutput Python脚本的输出文本

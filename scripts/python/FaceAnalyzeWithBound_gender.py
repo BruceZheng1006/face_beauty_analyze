@@ -1,0 +1,561 @@
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+import math
+import os
+import glob
+import sys
+import io
+import cv2
+import numpy as np
+
+# 作为脚本
+# face_landmarker.task下载链接
+# https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+
+# 强制标准输出/错误输出使用UTF-8编码
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+# --- 定义男女评价标准 ---
+MALE_THRESHOLDS = {
+    "mid_thresholds": [0.37, 0.4, 0.41, 0.43, 0.44, 0.47],
+    "down_thresholds": [0.33, 0.36, 0.39, 0.42, 0.43, 0.47],
+    "eye_length_thresholds": [17.1, 24.1132, 25.6932, 27.6936, 30.0536, 35.316],
+    "eye_dist_thresholds": [32.76, 34.0832, 34.99, 36.38, 37.24, 38.934],
+    "face_len_thresholds": [146.444, 157.05, 163.0748, 174.2184, 186.9536, 274.668],
+    "zygomatic_thresholds": [122.48, 129.1464, 133.4032, 140.4668, 146.3872, 157.774],
+    "mandible_angle_thresholds": [133.534, 138, 140.5732, 145.7652, 149.8336, 162.05],
+    "fwhr_thresholds": [1.068, 1.44, 1.51, 1.63, 1.72, 1.87],
+    "golden_angle_thresholds": [34.738, 58.45, 65.24, 73.7876, 78.9836, 91.052],
+    "eyebrow_w_thresholds": [22.03, 31.8328, 40.138, 46.0772, 53.4288, 71.678],
+    "eye_width_thresholds": [4.426, 7.5232, 8.51, 9.9252, 11.0904, 14.474],
+    "nose_ala_thresholds": [36.798, 39.2364, 40.5716, 42.9036, 44.19, 47.2],
+    "lip_w_thresholds": [40.552, 45.1732, 47.25, 51.59, 54.9704, 62.326],
+    "mouth_angle_thresholds": [90.536, 93.0532, 96.0848, 104.9452, 113.0508, 134.168],
+    "chin_angle_thresholds": [86.212, 129.2564, 134.2132, 141.9968, 147.414, 155.14],
+    "face_divergence_thresholds": [0.25124, 0.28496, 0.297216, 0.319236, 0.331236, 0.35172],
+    "face_fold_thresholds":  [0.35676, 0.38656, 0.404232, 0.444484, 0.472276, 0.52922]  # 面部折叠度
+}
+
+FEMALE_THRESHOLDS = {
+    "mid_thresholds": [0.38, 0.42, 0.44, 0.46, 0.47, 0.5],
+    "down_thresholds": [0.28, 0.32, 0.34, 0.37, 0.39, 0.43],
+    "eye_length_thresholds": [22.579, 24.688, 25.9555, 28.9536, 30.8444, 33.742],
+    "eye_dist_thresholds": [32.583, 34.04, 34.9855, 36.4, 37.0896, 38.65],
+    "face_len_thresholds": [140.322, 150.8276, 156.56, 167.0112, 173.6512, 193.292],
+    "zygomatic_thresholds": [119.428, 124.83, 127.96, 135.38, 139.3292, 149.678],
+    "mandible_angle_thresholds": [137.287, 141.0352, 143.6255, 148.69, 152.6624, 160.81],
+    "fwhr_thresholds": [1.33, 1.43, 1.48, 1.59, 1.66, 1.81],
+    "golden_angle_thresholds": [54.162, 60.42, 63.59, 68.5224, 71.8872, 81.452],
+    "eyebrow_w_thresholds": [25.45, 31.9236, 36.7055, 45.92, 50.16, 61.17],
+    "eye_width_thresholds": [6.171, 9.0876, 10.36, 11.7712, 12.53, 14.12],
+    "nose_ala_thresholds": [35.558, 37.4328, 38.73, 40.96, 42.58, 45.172],
+    "lip_w_thresholds": [37.961, 42.7136, 45.2485, 51.92, 58.044, 66.494],
+    "mouth_angle_thresholds": [90.81, 93.1612, 98.33, 110.618, 120.42, 138.165],
+    "chin_angle_thresholds": [121.033, 126.8828, 129.9965, 135.3212, 138.6, 145.847],
+    "face_divergence_thresholds": [0.28115, 0.307056, 0.317488, 0.3368, 0.347, 0.36254],
+    "face_fold_thresholds":  [0.36432, 0.3896, 0.407592, 0.4479, 0.464324, 0.5044]  # 面部折叠度
+
+}
+
+# --- 评级描述 ---
+GRADE_DESCRIPTIONS = {
+    "mid_grade": ["中庭超小", "中庭小", "中庭稍小", "中庭标准", "中庭稍大", "中庭大", "中庭超大"],
+    "down_grade": ["下庭超小", "下庭小", "下庭稍小", "下庭标准", "下庭稍大", "下庭大", "下庭超大"],
+    "eye_length_grade": ["眼睛超短", "眼睛短", "眼睛稍短", "眼睛标准", "眼睛稍长", "眼睛长", "眼睛超长"],
+    "eye_dist_grade": ["眼距超小", "眼距小", "眼距稍小", "眼距标准", "眼距稍大", "眼距大", "眼距超大"],
+    "face_len_grade": ["脸超短", "脸短", "脸稍短", "脸长标准", "脸稍长", "脸长", "脸超长"],
+    "zygomatic_grade": ["颧骨超短", "颧骨短", "颧骨稍短", "颧骨标准", "颧骨稍长", "颧骨长", "颧骨超长"],
+    "mandible_angle_grade": ["下颌角超小", "下颌角小", "下颌角稍小", "下颌角标准", "下颌角稍大", "下颌角大", "下颌角超大"],
+    "fwhr_grade": ["面宽超小", "面宽小", "面宽稍小", "面宽标准", "面宽稍大", "面宽大", "面宽超大"],
+    "golden_angle_grade": ["黄金三角超小", "黄金三角小", "黄金三角稍小", "黄金三角标准", "黄金三角稍大", "黄金三角大", "黄金三角超大"],
+    "eyebrow_w_grade": ["眉毛超短", "眉毛短", "眉毛稍短", "眉毛标准", "眉毛稍长", "眉毛长", "眉毛超长"],
+    "eye_width_grade": ["眼宽超小", "眼宽小", "眼宽稍小", "眼宽标准", "眼宽稍大", "眼宽大", "眼宽超大"],
+    "nose_ala_grade": ["鼻翼超小", "鼻翼小", "鼻翼稍小", "鼻翼标准", "鼻翼稍大", "鼻翼大", "鼻翼超大"],
+    "lip_w_grade": ["嘴唇超短", "嘴唇短", "嘴唇稍短", "嘴唇标准", "嘴唇稍长", "嘴唇长", "嘴唇超长"],
+    "mouth_angle_grade": ["嘴角超平", "嘴角平", "嘴角稍平", "嘴角标准", "嘴角稍翘", "嘴角翘", "嘴角超翘"],
+    "chin_angle_grade": ["下巴超尖", "下巴尖", "下巴角稍尖", "下巴标准", "下巴稍圆", "下巴圆", "下巴超圆"],
+    "face_divergence_grade": ["面部超聚拢", "面部聚拢", "面部稍聚拢", "面部标准", "面部稍分散", "面部分散", "面部超分散"],
+    "face_fold_grade": ["面部折叠度极低", "面部折叠度低", "面部折叠度偏低","面部折叠度标准", "面部折叠度偏高", "面部折叠度高", "面部折叠度极高"]
+}
+def get_3d_face_fold_score(landmarks, face_length, zygomatic_width, mandible_width):
+    """
+    结合Z轴深度信息计算3D面部折叠度综合分数
+    :param landmarks: MediaPipe检测到的人脸关键点列表（含x,y,z）
+    :param face_length: 面部长度(mm)，复用原有计算结果
+    :param zygomatic_width: 颧骨宽度(mm)，复用原有计算结果
+    :param mandible_width: 下颌角宽度(mm)，复用原有计算结果
+    :return: 标准化折叠度综合分数（0~1区间）
+    """
+    # 异常防护：避免除零错误
+    if zygomatic_width <= 0:
+        return 0.0
+
+    # 1. 计算2D基础特征：面部内收比 + 长宽比
+    jaw_zygo_ratio = mandible_width / zygomatic_width  # 下颌/颧骨 内收比
+    len_zygo_ratio = face_length / zygomatic_width     # 脸长/颧骨 长宽比
+    # 2D基础得分：内收比权重更高，数值越小折叠度越高，故用(1-比值)
+    base_2d_score = (1 - jaw_zygo_ratio) * 0.5 + len_zygo_ratio * 0.2
+
+    # 2. 计算3D纵深特征：鼻尖突出度（Z轴核心逻辑）
+    # 选取面部基准点：发际线中心(10)、下巴尖(152)，计算平均Z轴坐标
+    base_z = (landmarks[10].z + landmarks[152].z) / 2
+    nose_z = landmarks[1].z  # 鼻尖关键点Z轴坐标
+    # 计算Z轴差值：MediaPipe中z越小（更负），代表向镜头突出越明显
+    depth_diff = abs(nose_z - base_z)
+    # 标准化深度得分（缩放系数适配MediaPipe标准化Z轴数值范围，可微调）
+    depth_score = depth_diff
+
+    # 3. 加权融合最终分数，总权重和为1，限制分数在0~1之间
+    final_score = base_2d_score + depth_score
+    return round(final_score, 4)
+
+def get_face_divergence(landmarks, img_w, img_h):
+    # 将归一化坐标转换为像素坐标
+    def to_pixel(idx):
+        return [landmarks[idx].x * img_w, landmarks[idx].y * img_h]
+
+    # --- A. 定义内圈 (五官密集区) ---
+    # 选点：眉心(8), 左眼外角(33), 左嘴角(61), 下唇底(18), 右嘴角(291), 右眼外角(263)
+    inner_indices = [8, 33, 61, 18, 291, 263]
+    inner_pts = np.array([to_pixel(i) for i in inner_indices], dtype=np.int32)
+
+    # --- B. 定义外圈 (全脸轮廓) ---
+    # 选取面部边缘的代表点 (或使用 MediaPipe 提供的 FACE_CONTOURS 列表)
+    outer_indices = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+                     397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+                     172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
+    outer_pts = np.array([to_pixel(i) for i in outer_indices], dtype=np.int32)
+
+    # 计算面积 (OpenCV 现成函数)
+    area_inner = cv2.contourArea(inner_pts)
+    area_outer = cv2.contourArea(outer_pts)
+
+    # 计算比例 (密度值)
+    density_ratio = area_inner / area_outer
+
+    return density_ratio
+
+# --- 几何计算工具函数 ---
+def get_distance(p1, p2, img_w, img_h):
+    return math.sqrt(((p1.x - p2.x) * img_w) ** 2 + ((p1.y - p2.y) * img_h) ** 2)
+
+
+# 三点计算角度
+def get_angle(p1, p2, p3, img_w, img_h):
+    a = [p1.x * img_w, p1.y * img_h]
+    b = [p2.x * img_w, p2.y * img_h]
+    c = [p3.x * img_w, p3.y * img_h]
+    ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
+    return abs(ang) if abs(ang) <= 180 else 360 - abs(ang)
+
+
+# 两点计算和x轴成的角 第一个点是顶点
+def get_twopoint_angle(p1, p2, img_w, img_h):
+    # 转换关键点为图像像素坐标
+    a = [p1.x * img_w, p1.y * img_h]
+    b = [p2.x * img_w, p2.y * img_h]
+
+    # 计算弧度并转换为角度，取绝对值
+    ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
+    return abs(ang) if abs(ang) <= 180 else 360 - abs(ang)
+
+
+# 根据阈值和值获取等级
+def get_grade_by_thresholds(value, thresholds, grade_descriptions, label):
+    if value < thresholds[0]:
+        return grade_descriptions[0]
+    elif thresholds[0] <= value < thresholds[1]:
+        return grade_descriptions[1]
+    elif thresholds[1] <= value < thresholds[2]:
+        return grade_descriptions[2]
+    elif thresholds[2] <= value < thresholds[3]:
+        return grade_descriptions[3]
+    elif thresholds[3] <= value < thresholds[4]:
+        return grade_descriptions[4]
+    elif thresholds[4] <= value < thresholds[5]:
+        return grade_descriptions[5]
+    else:
+        return grade_descriptions[6]
+
+
+# --- 封装单张图片处理函数 ---
+def process_single_image(image_path, detector, face_key_points, number, gender):
+    """
+    处理单张人脸图片，输出美学测量结果
+    :param image_path: 单张图片的完整路径
+    :param detector: 初始化好的人脸检测器
+    :param face_key_points: 人脸关键点映射字典
+    :param number: 人脸编号
+    :param gender: 性别 ('male' 或 'female')
+    """
+    try:
+        # 获取对应性别的阈值，但使用相同的评价描述
+        if gender.lower() == 'female':
+            thresholds = FEMALE_THRESHOLDS
+        else:
+            thresholds = MALE_THRESHOLDS
+        
+        # 使用通用的评价描述
+        grades = GRADE_DESCRIPTIONS
+
+        # 打印当前处理的图片名称
+        image_name = os.path.basename(image_path)
+        print(f"\n==================================================")
+        print(f"正在处理图片：{image_name}")
+        print(f"==================================================")
+
+        # 加载图片
+        image = mp.Image.create_from_file(image_path)
+        img_h, img_w = image.height, image.width
+        result = detector.detect(image)
+
+        if result.face_landmarks:
+            for face_idx, landmarks in enumerate(result.face_landmarks):
+                print(f"\n========== 第 {number} 张人脸 (基础坐标) ==========")
+                for point_name, point_index in face_key_points.items():
+                    if point_index < len(landmarks):
+                        point = landmarks[point_index]
+                        print(f"🔹 {point_name}（索引{point_index}）：X={point.x:.4f}, Y={point.y:.4f}, Z={point.z:.4f}")
+
+                # --- 比例尺计算 ---
+                px_ipd = get_distance(landmarks[468], landmarks[473], img_w, img_h)
+                factor = 63.0 / px_ipd
+                print(f"\n========== 深度美学测量 (单位: mm) ==========")
+
+                # 1. 三庭
+                print(f"\n● 三庭")
+                top_h = get_distance(landmarks[10], landmarks[9], img_w, img_h) * factor
+                mid_h = get_distance(landmarks[9], landmarks[2], img_w, img_h) * factor
+                bot_h = get_distance(landmarks[2], landmarks[152], img_w, img_h) * factor
+                total_h = top_h + mid_h + bot_h
+
+                print(f"三庭比例: {top_h / total_h:.2f}:{mid_h / total_h:.2f}:{bot_h / total_h:.2f}")
+                print(f"上庭长度: {top_h:.2f} mm")
+                print(f"上庭占比: {top_h / total_h:.2f}")
+                print(f"中庭长度: {mid_h:.2f} mm")
+                mid_ratio = mid_h / total_h
+                print(f"中庭占比: {mid_ratio:.2f}")
+                print(f"下庭长度: {bot_h:.2f} mm")
+                print(f"下庭占比: {bot_h / total_h:.2f}")
+                down_ratio = bot_h / total_h
+                
+                # 获取中庭评价
+                mid_grade = get_grade_by_thresholds(mid_ratio, thresholds["mid_thresholds"], grades["mid_grade"], "中庭")
+                print(f"中庭尺寸评价: {mid_grade}")
+
+                # 获取下庭评价
+                down_grade = get_grade_by_thresholds(down_ratio, thresholds["down_thresholds"], grades["down_grade"], "下庭")
+                print(f"下庭尺寸评价: {down_grade}")
+                
+                # 2. 五眼
+                print(f"\n● 五眼")
+                # 顺序：图片左侧(右眼外侧) -> 图片右侧(左眼外侧)
+                dist_r_out = get_distance(landmarks[234], landmarks[33], img_w, img_h) * factor
+                dist_r_eye = get_distance(landmarks[33], landmarks[133], img_w, img_h) * factor
+                dist_mid = get_distance(landmarks[133], landmarks[362], img_w, img_h) * factor
+                dist_l_eye = get_distance(landmarks[362], landmarks[263], img_w, img_h) * factor
+                dist_l_out = get_distance(landmarks[263], landmarks[454], img_w, img_h) * factor
+                print(f"五眼比例: {dist_r_out / dist_mid:.2f}:{dist_r_eye / dist_mid:.2f}:1.00:{dist_l_eye / dist_mid:.2f}:{dist_l_out / dist_mid:.2f}")
+                print(f"右眼外侧留白距离: {dist_r_out:.2f} mm")
+                print(f"右眼外侧留白距离占比: {dist_r_out / dist_mid:.2f}")
+                print(f"右眼长度: {dist_r_eye:.2f} mm")
+                print(f"内眼角间距: {dist_mid:.2f} mm")  # 通常作为基准1
+                print(f"内眼角间距占比: {dist_mid / dist_mid:.2f}")
+                print(f"左眼长度: {dist_l_eye:.2f} mm")
+                print(f"左眼外侧留白距离: {dist_l_out:.2f} mm")
+                print(f"左眼外侧留白距离占比: {dist_l_out / dist_mid:.2f}")
+
+                # 获取内眼角间距评价
+                eye_dist_grade = get_grade_by_thresholds(dist_mid, thresholds["eye_dist_thresholds"], grades["eye_dist_grade"], "内眼角间距")
+                print(f"内眼角间距评价: {eye_dist_grade}")
+
+
+                # 3. 脸部
+                print(f"\n● 脸部")
+                face_length = get_distance(landmarks[10], landmarks[152], img_w, img_h) * factor
+                forehead_width = get_distance(landmarks[127], landmarks[356], img_w, img_h) * factor  # 颞部宽度
+                zygomatic_width = get_distance(landmarks[234], landmarks[454], img_w, img_h) * factor  # 颧骨宽度
+                mandible_width = get_distance(landmarks[172], landmarks[397], img_w, img_h) * factor  # 下颌角宽度
+                mandible_angle = get_angle(landmarks[361], landmarks[397], landmarks[152], img_w, img_h)  # 下颌角度数
+                upface_height = get_distance(landmarks[9], landmarks[0], img_w, img_h) * factor  # 上脸高度
+                print(f"脸部长度: {face_length:.2f} mm")
+                print(f"颞部宽度: {forehead_width:.2f} mm")
+                print(f"颧骨宽度: {zygomatic_width:.2f} mm")
+                print(f"下颌角宽度: {mandible_width:.2f} mm")
+                print(f"下颌角度数: {mandible_angle:.2f} °")
+                print(
+                    f"颞宽:颧宽:下颌宽: {forehead_width / zygomatic_width:.2f}:1.00:{mandible_width / zygomatic_width:.2f}")
+                # fWHR:颧骨宽度 / 上脸高度(眉毛中心点到上唇上缘)
+                fwhr = zygomatic_width / upface_height
+                print(f"fWHR(面部宽高比): {fwhr:.2f}")
+                
+                # 获取脸部长度评价
+                face_len_grade = get_grade_by_thresholds(face_length, thresholds["face_len_thresholds"], grades["face_len_grade"], "脸部长度")
+                print(f"脸部长度评价: {face_len_grade}")
+
+                # 获取颧骨宽度评价
+                zygomatic_grade = get_grade_by_thresholds(zygomatic_width, thresholds["zygomatic_thresholds"], grades["zygomatic_grade"], "颧骨宽度")
+                print(f"颧骨宽度评价: {zygomatic_grade}")
+
+                # 获取下颌角度数评价
+                mandible_angle_grade = get_grade_by_thresholds(mandible_angle, thresholds["mandible_angle_thresholds"], grades["mandible_angle_grade"], "下颌角度数")
+                print(f"下颌角度数评价: {mandible_angle_grade}")
+
+                # 获取fWHR评价
+                fwhr_grade = get_grade_by_thresholds(fwhr, thresholds["fwhr_thresholds"], grades["fwhr_grade"], "面部宽高比")
+                print(f"面部宽高比评价: {fwhr_grade}")
+
+                # 4. 黄金三角
+                print(f"\n● 黄金三角")
+                # 顶点为鼻尖(1)，两底点为左右瞳孔(473,468)
+                golden_angle = get_angle(landmarks[468], landmarks[1], landmarks[473], img_w, img_h)
+                print(f"黄金三角度数: {golden_angle:.2f} °")
+                
+                # 获取黄金三角度数评价
+                golden_angle_grade = get_grade_by_thresholds(golden_angle, thresholds["golden_angle_thresholds"], grades["golden_angle_grade"], "黄金三角度数")
+                print(f"黄金三角度数评价: {golden_angle_grade}")
+
+                # 5. 眉毛
+                print(f"\n● 眉毛")
+                # 右眉(画面左)作为示例
+                eyebrow_h = abs(landmarks[105].y * img_h - landmarks[55].y * img_h) * factor  # 眉毛高度
+                eyebrow_w = get_distance(landmarks[70], landmarks[107], img_w, img_h) * factor  # 眉毛宽度
+                eyebrow_thick = abs(landmarks[105].y * img_h - landmarks[223].y * img_h) * factor  # 眉毛粗细
+                eyebrow_tilt = get_twopoint_angle(landmarks[105], landmarks[107], img_w, img_h)  # 挑度
+                eyebrow_curvature = get_twopoint_angle(landmarks[46], landmarks[55], img_w, img_h)  # 弯度
+                print(f"眉毛高度: {eyebrow_h:.2f} mm")
+                print(f"眉毛长度: {eyebrow_w:.2f} mm")
+                print(f"眉毛粗细: {eyebrow_thick:.2f} mm")
+                print(f"眉毛挑度: {eyebrow_tilt:.2f} °")
+                print(f"眉毛弯度: {eyebrow_curvature:.2f} °")
+                
+                # 获取眉毛宽度评价
+                eyebrow_w_grade = get_grade_by_thresholds(eyebrow_w, thresholds["eyebrow_w_thresholds"], grades["eyebrow_w_grade"], "眉毛长度")
+                print(f"眉毛长度评价: {eyebrow_w_grade}")
+
+                # 6. 眼睛
+                print(f"\n● 眼睛")
+                eye_width = get_distance(landmarks[159], landmarks[145], img_w, img_h) * factor  # 眼睛宽度
+                eye_length = get_distance(landmarks[33], landmarks[133], img_w, img_h) * factor  # 眼睛长度
+                inner_eye_angle = get_angle(landmarks[157], landmarks[133], landmarks[154], img_w, img_h)  # 内眦角度
+                print(f"眼睛长度: {eye_length:.2f} mm")
+                print(f"眼睛宽度: {eye_width:.2f} mm")
+                print(f"内眦角度数: {inner_eye_angle:.2f} °")
+
+                # 获取眼睛长度评价
+                eye_length_grade = get_grade_by_thresholds(eye_length, thresholds["eye_length_thresholds"], grades["eye_length_grade"], "眼睛长度")
+                print(f"眼睛长度评价: {eye_length_grade}")
+
+                # 获取眼睛宽度评价
+                eye_width_grade = get_grade_by_thresholds(eye_width, thresholds["eye_width_thresholds"], grades["eye_width_grade"], "眼睛宽度")
+                print(f"眼睛宽度评价: {eye_width_grade}")
+
+                # 7. 鼻子
+                print(f"\n● 鼻子")
+                nose_ala_width = get_distance(landmarks[129], landmarks[358], img_w, img_h) * factor
+                print(f"鼻翼宽度: {nose_ala_width:.2f} mm")
+                
+                # 获取鼻翼宽度评价
+                nose_ala_grade = get_grade_by_thresholds(nose_ala_width, thresholds["nose_ala_thresholds"], grades["nose_ala_grade"], "鼻翼宽度")
+                print(f"鼻翼宽度评价: {nose_ala_grade}")
+
+                # 8. 嘴唇
+                print(f"\n● 嘴唇")
+                lip_h = abs(landmarks[37].y * img_h - landmarks[17].y * img_h) * factor
+                # 嘴唇宽度
+                lip_w = get_distance(landmarks[61], landmarks[291], img_w, img_h) * factor
+                # 厚度
+                lip_up_thick = abs(landmarks[37].y * img_h - landmarks[13].y * img_h) * factor
+                lip_down_thick = get_distance(landmarks[14], landmarks[17], img_w, img_h) * factor
+                lip_thick = (lip_up_thick + lip_down_thick) / 2
+                # 嘴角点(291)与唇中内缘点(13)
+                mouth_angle = 270 - get_twopoint_angle(landmarks[291], landmarks[308], img_w, img_h)
+                print(f"嘴唇高度: {lip_h:.2f} mm")
+                print(f"嘴唇长度: {lip_w:.2f} mm")
+                print(f"嘴唇厚度: {lip_thick:.2f} mm")
+                print(f"嘴角弯曲度: {mouth_angle:.2f} °")
+                
+                # 获取嘴唇宽度评价
+                lip_w_grade = get_grade_by_thresholds(lip_w, thresholds["lip_w_thresholds"], grades["lip_w_grade"], "嘴唇长度")
+                print(f"嘴唇长度评价: {lip_w_grade}")
+
+                # 获取嘴角弯曲度评价
+                mouth_angle_grade = get_grade_by_thresholds(mouth_angle, thresholds["mouth_angle_thresholds"], grades["mouth_angle_grade"], "嘴角弯曲度")
+                print(f"嘴角弯曲度评价: {mouth_angle_grade}")
+
+                # 9. 下巴
+                print(f"\n● 下巴")
+                # 下巴长度
+                chin_len = get_distance(landmarks[17], landmarks[152], img_w, img_h) * factor
+                # 下巴宽度
+                chin_width = get_distance(landmarks[149], landmarks[378], img_w, img_h) * factor
+                # 下巴角度
+                chin_angle = get_angle(landmarks[149], landmarks[152], landmarks[378], img_w, img_h)
+                print(f"下巴长度: {chin_len:.2f} mm")
+                print(f"下巴宽度: {chin_width:.2f} mm")
+                print(f"下巴角度: {chin_angle:.2f} °")
+                
+                # 获取下巴角度评价
+                chin_angle_grade = get_grade_by_thresholds(chin_angle, thresholds["chin_angle_thresholds"], grades["chin_angle_grade"], "下巴角度")
+                print(f"下巴角度评价: {chin_angle_grade}")
+
+                # 10. 面部聚散度
+                print(f"\n● 面部聚散度")
+                face_divergence_ratio = get_face_divergence(landmarks, img_w, img_h)
+                print(f"面部聚散度: {face_divergence_ratio:.4f}")
+                face_divergence_grade = get_grade_by_thresholds(face_divergence_ratio, thresholds["face_divergence_thresholds"], grades["face_divergence_grade"], "面部聚散度")
+                print(f"面部聚散度评价: {face_divergence_grade}")
+
+                # 11. 面部折叠度
+                print(f"\n● 面部折叠度")
+                # 调用3D计算函数
+                fold_score = get_3d_face_fold_score(landmarks, face_length, zygomatic_width, mandible_width)
+                print(f"面部折叠度: {fold_score:.4f}")
+                # 获取评级
+                fold_grade = get_grade_by_thresholds(fold_score, thresholds["face_fold_thresholds"], grades["face_fold_grade"], "面部折叠度")
+                print(f"面部折叠度评价: {fold_grade}")
+
+
+                print(f"\n● 整体评价")
+                print(f"整体: 这个人{mid_grade}, {down_grade}, {eye_dist_grade}, "
+                      f"{face_len_grade}, {zygomatic_grade}, {mandible_angle_grade}, "
+                      f"{fwhr_grade}, {golden_angle_grade}, {eyebrow_w_grade}, "
+                      f"{eye_length_grade}, {eye_width_grade}, {nose_ala_grade}, {lip_w_grade}, "
+                      f"{mouth_angle_grade}, {chin_angle_grade}, {face_divergence_grade}, {fold_grade}")
+
+        else:
+            print(f"❌ 图片 {image_name} 未检测到人脸")
+
+    except Exception as e:
+        print(f"❌ 处理图片 {os.path.basename(image_path)} 时出错：{str(e)}")
+
+
+def get_valid_image_paths(input_path):
+    """
+    判断输入路径是文件还是文件夹，返回有效的图片路径列表
+    :param input_path: 输入的文件/文件夹路径
+    :return: 有效图片路径列表
+    """
+    valid_image_paths = []
+    # 1. 判断路径是否存在
+    if not os.path.exists(input_path):
+        print(f"❌ 路径不存在：{input_path}")
+        return valid_image_paths
+
+    # 2. 如果是文件：判断是否为图片格式
+    if os.path.isfile(input_path):
+        file_ext = os.path.splitext(input_path)[1].lower()
+        if file_ext in ['.jpg', '.jpeg', '.png']:
+            valid_image_paths.append(input_path)
+        else:
+            print(f"❌ 文件 {input_path} 不是支持的图片格式（仅支持jpg/jpeg/png）")
+        return valid_image_paths
+
+    # 3. 如果是文件夹：遍历所有图片格式文件（和原有逻辑一致）
+    if os.path.isdir(input_path):
+        # 匹配常见图片格式
+        valid_image_paths = glob.glob(os.path.join(input_path, "*.[jJ][pP][gG]")) + \
+                            glob.glob(os.path.join(input_path, "*.[jJ][pP][eE][gG]")) + \
+                            glob.glob(os.path.join(input_path, "*.[pP][nN][gG]"))
+        return valid_image_paths
+
+    # 4. 既不是文件也不是文件夹
+    print(f"❌ 路径 {input_path} 既不是文件也不是文件夹")
+    return valid_image_paths
+
+
+if __name__ == "__main__":
+    # 1. 读取命令行参数
+    if len(sys.argv) < 3:
+        print("❌ 使用方法：python 脚本名.py <图片路径/文件夹路径> <性别(male/female)>")
+        sys.exit(1)
+    input_path = sys.argv[1]
+    gender = sys.argv[2].lower()  # 获取性别参数
+    
+    # 验证性别参数
+    if gender not in ['male', 'female']:
+        print("❌ 性别参数错误，请使用 male 或 female")
+        sys.exit(1)
+
+    # 2. 模型初始化
+    model_path = "scripts/models/face_landmarker.task"
+    if not os.path.exists(model_path):
+        print(f"❌ 模型文件不存在：{model_path}，请下载后放在代码同目录下")
+        exit(1)
+
+    base_options = python.BaseOptions(model_asset_path=model_path)
+    options = vision.FaceLandmarkerOptions(base_options=base_options, num_faces=1, output_face_blendshapes=True)
+    detector = vision.FaceLandmarker.create_from_options(options)
+
+    # 3. 定义人脸关键点映射
+    face_key_points = {
+        # 三庭
+        "额头发际线中心": 10,
+        "双眉中心": 9,
+        "鼻下点(人中顶部)": 2,
+        "下巴尖": 152,
+        # 五眼
+        "右颧骨最外侧": 234,
+        "右外眼角": 33,
+        "右内眼角": 133,
+        "左内眼角": 362,
+        "左外眼角": 263,
+        "左颧骨最外侧": 454,
+        # 脸部
+        "右颞部边缘": 127,
+        "左颞部边缘": 356,
+        "右下额边缘": 172,
+        "左下额边缘": 397,
+        "左耳耳际": 361,
+        # 黄金三角
+        "右眼瞳孔": 468,
+        "左眼瞳孔": 473,
+        "鼻尖": 1,
+        # 眉毛
+        "右眉外侧上部": 70,
+        "右眉外侧下部": 46,
+        "右眉最高点": 105,
+        "右眉中部下": 223,
+        "右眉内侧上部": 107,
+        "右眉内侧下部": 55,
+        # 眼睛
+        "右眼上眼睑中心": 159,
+        "右眼下眼睑中心": 145,
+        "右眼靠内侧上方": 157,
+        "右眼靠内侧下方": 154,
+        # 鼻子
+        "右鼻翼": 129,
+        "左鼻翼": 358,
+        # 嘴唇
+        "右嘴角": 61,
+        "左嘴角": 291,
+        "上唇中点": 0,
+        "上唇下部": 13,
+        "下唇上部": 14,
+        "下唇中点": 17,
+        "上唇最高点": 37,
+        "上唇下部偏左点": 308,
+        # 下巴
+        "下巴左侧": 378,
+        "下巴右侧": 149
+    }
+
+    # 4. 获取有效图片路径列表
+    image_paths = get_valid_image_paths(input_path)
+
+    # 5. 处理图片
+    if not image_paths:
+        print(f"❌ 未找到可处理的有效图片")
+    else:
+        print(f"✅️ 共找到 {len(image_paths)} 张有效图片，开始处理...")
+        number = 0
+        for img_path in image_paths:
+            number += 1
+            process_single_image(img_path, detector, face_key_points, number, gender)
+
+    # 6. 释放检测器资源
+    detector.close()
+    print(f"\n==================================================")
+    print(f"处理完成！")
