@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  */
 public class PythonFaceAnalyzeUtil {
     // 1. 配置关键路径（保持你原来的路径不变，根据实际情况修改）
-    private static final String PYTHON_SCRIPT_PATH = "D:\\Bias\\14.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBound_gender.py";
+    private static final String PYTHON_SCRIPT_PATH = "D:\\Bias\\15.3\\face_beauty_analyze\\scripts\\python\\FaceAnalyzeWithBound_gender.py";
     private static final String PYTHON_COMMAND = "python";
 
     /**
