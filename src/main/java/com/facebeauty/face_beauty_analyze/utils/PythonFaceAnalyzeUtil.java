@@ -142,7 +142,7 @@ public class PythonFaceAnalyzeUtil {
                         String value = parts[1].trim();
                         
                         // 移除单位(mm, °等)
-                        value = value.replaceAll("[a-zA-Z°%]+", "").trim();
+                        //value = value.replaceAll("[a-zA-Z°%]+", "").trim();
                         
                         // 添加到对应的部分
                         if (!currentSection.isEmpty()) {

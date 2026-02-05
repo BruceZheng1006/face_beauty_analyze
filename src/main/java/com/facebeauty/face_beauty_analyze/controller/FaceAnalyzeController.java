@@ -24,9 +24,6 @@ public class FaceAnalyzeController {
 
     // 临时文件存储目录（用于处理过程中的临时文件）
     private static final String TEMP_UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "temp";
-    
-    // 原始文件存储目录（保存上传的原始文件）
-    private static final String ORIGINAL_UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads";
 
     // 1. 访问根路径，返回前端页面
     @GetMapping("/")
@@ -46,15 +43,10 @@ public class FaceAnalyzeController {
             return result;
         }
 
-        // 2. 初始化临时目录和原始文件目录（不存在则创建）
+        // 2. 初始化临时目录（不存在则创建）
         File tempDir = new File(TEMP_UPLOAD_DIR);
         if (!tempDir.exists()) {
             tempDir.mkdirs();
-        }
-        
-        File originalDir = new File(ORIGINAL_UPLOAD_DIR);
-        if (!originalDir.exists()) {
-            originalDir.mkdirs();
         }
 
         // 3. 保存上传的文件到临时目录（生成唯一文件名，避免重复）
@@ -62,23 +54,9 @@ public class FaceAnalyzeController {
         String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
         File tempFile = new File(tempDir, uniqueFileName);
         
-        // 同时保存原始文件到原始文件目录，使用唯一文件名防止覆盖
-        String uniqueOriginalFileName = generateUniqueFileName(originalFileName);
-        File originalFile = new File(originalDir, uniqueOriginalFileName);
-        
         try {
             // 保存上传的文件到本地临时目录
             file.transferTo(tempFile);
-            
-            // 确保原始文件目录存在
-            if (!originalFile.getParentFile().exists()) {
-                originalFile.getParentFile().mkdirs();
-            }
-            
-            // 同时保存原始文件（覆盖同名文件）
-            // 重要：由于Multipart文件只能transfer一次，我们需要分别处理
-            // 先复制临时文件到原始文件位置
-            java.nio.file.Files.copy(tempFile.toPath(), originalFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             result.put("success", false);
             result.put("message", "❌ 保存上传文件失败：" + e.getMessage());
@@ -91,10 +69,9 @@ public class FaceAnalyzeController {
         // 5. 将Python结果解析为JSON格式
         String jsonResult = PythonFaceAnalyzeUtil.parsePythonOutputToJson(pythonResult);
 
-        // 6. 创建人脸分析结果实体并保存到数据库
+        // 6. 创建人脸分析结果实体并保存到数据库（不包含图像路径）
         FaceAnalysisResult faceAnalysisResult = new FaceAnalysisResult();
         faceAnalysisResult.setImageName(originalFileName); // 保存原始文件名
-        faceAnalysisResult.setImagePath(originalFile.getAbsolutePath()); // 保存唯一命名的原始文件的完整路径
         
         // 从原始Python输出中提取人脸数量
         int faceCount = extractFaceCountFromOutput(pythonResult);
@@ -106,7 +83,7 @@ public class FaceAnalyzeController {
         // 7. 保存到数据库
         int saveResult = faceAnalysisResultService.saveFaceAnalysisResult(faceAnalysisResult);
         
-        // 8. （可选）删除临时文件（避免占用磁盘空间）
+        // 8. 删除临时文件（立即删除上传的图片，确保隐私）
         tempFile.delete();
 
         // 9. 返回处理结果
@@ -139,19 +116,6 @@ public class FaceAnalyzeController {
         }
         
         return result;
-    }
-
-    // 生成唯一文件名的方法
-    private String generateUniqueFileName(String originalFileName) {
-        String extension = "";
-        int lastDotIndex = originalFileName.lastIndexOf('.');
-        if (lastDotIndex > 0) {
-            extension = originalFileName.substring(lastDotIndex);
-        }
-        String fileNameWithoutExtension = lastDotIndex > 0 ? 
-            originalFileName.substring(0, lastDotIndex) : originalFileName;
-        
-        return UUID.randomUUID().toString() + "_" + fileNameWithoutExtension + extension;
     }
 
     // 提取人脸数量的方法

@@ -5,7 +5,6 @@
     <resultMap id="BaseResultMap" type="com.facebeauty.face_beauty_analyze.entity.FaceAnalysisResult">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="image_name" property="imageName" jdbcType="VARCHAR"/>
-        <result column="image_path" property="imagePath" jdbcType="VARCHAR"/>
         <result column="analysis_json" property="analysisJson" jdbcType="LONGVARCHAR"/>
         <result column="face_count" property="faceCount" jdbcType="INTEGER"/>
         <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
@@ -13,7 +12,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, image_name, image_path, analysis_json, 
+        id, image_name, analysis_json, 
         face_count, created_time, updated_time
     </sql>
 
@@ -21,13 +20,11 @@
         INSERT INTO face_analysis_results
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="imageName != null">image_name,</if>
-            <if test="imagePath != null">image_path,</if>
             <if test="analysisJson != null">analysis_json,</if>
             <if test="faceCount != null">face_count,</if>
         </trim>
         <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
             <if test="imageName != null">#{imageName,jdbcType=VARCHAR},</if>
-            <if test="imagePath != null">#{imagePath,jdbcType=VARCHAR},</if>
             <if test="analysisJson != null">#{analysisJson,jdbcType=LONGVARCHAR},</if>
             <if test="faceCount != null">#{faceCount,jdbcType=INTEGER},</if>
         </trim>
@@ -60,9 +57,6 @@
         <set>
             <if test="imageName != null">
                 image_name = #{imageName,jdbcType=VARCHAR},
-            </if>
-            <if test="imagePath != null">
-                image_path = #{imagePath,jdbcType=VARCHAR},
             </if>
             <if test="analysisJson != null">
                 analysis_json = #{analysisJson,jdbcType=LONGVARCHAR},

@@ -113,6 +113,76 @@
             return;
         }
 
+        // 显示确认弹窗
+        showConfirmationModal(file, resultDiv, analyzeBtn);
+    }
+    
+    // 显示确认弹窗
+    function showConfirmationModal(file, resultDiv, analyzeBtn) {
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '9998';
+        
+        // 创建弹窗容器
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.backgroundColor = 'white';
+        modal.style.padding = '20px';
+        modal.style.borderRadius = '8px';
+        modal.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        modal.style.zIndex = '9999';
+        modal.style.maxWidth = '400px';
+        modal.style.minWidth = '300px';
+        
+        // 弹窗内容
+        modal.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <strong>隐私声明</strong>
+            </div>
+            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.4;">
+                上传的图片分析时会暂时缓存，分析成功后立即删除。
+            </div>
+            <div style="text-align: right;">
+                <button id="cancelBtn" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">取消</button>
+                <button id="confirmBtn" style="padding: 8px 16px; background-color: #42b983; color: white; border: none; border-radius: 4px; cursor: pointer;">同意并上传</button>
+            </div>
+        `;
+        
+        // 添加到页面
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('cancelBtn').onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(modal);
+            // 恢复按钮状态
+            analyzeBtn.disabled = false;
+            analyzeBtn.textContent = "上传并分析";
+        };
+        
+        // 确认按钮事件
+        document.getElementById('confirmBtn').onclick = function() {
+            // 移除弹窗
+            document.body.removeChild(overlay);
+            document.body.removeChild(modal);
+            
+            // 执行上传分析
+            performUpload(file, resultDiv, analyzeBtn);
+        };
+    }
+    
+    // 执行上传分析
+    function performUpload(file, resultDiv, analyzeBtn) {
         // 禁用按钮并显示加载状态
         analyzeBtn.disabled = true;
         analyzeBtn.textContent = "分析中...";
@@ -187,7 +257,7 @@
     }
 </script>
 <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #999; padding: 20px;">
-    制作人：Bruce Zheng<br>
+    公司宣传标语<br>
     未经许可，请勿抄袭
 </div>
 </body>

@@ -11,10 +11,7 @@ public class FaceAnalysisResult {
 
     private String imageName; // 图片原始名称
 
-    private String imagePath; // 图片存储路径
-
     private String analysisJson; // 人脸分析结果JSON数据
-
 
 
     private Integer faceCount; // 检测到的人脸数量
