@@ -7,7 +7,7 @@
         body {
             font-family: Arial, sans-serif;
             max-width: 1200px;
-            margin: 50px auto;
+            margin: 20px auto;
             padding: 0 20px;
         }
         .form-container {
@@ -40,14 +40,19 @@
             cursor: not-allowed;
         }
         .result-container {
-            padding: 20px;
+            padding: 16px 12px;
             border: 1px solid #ccc;
             border-radius: 4px;
             background-color: #f9f9f9;
-            white-space: pre-wrap;
+            white-space: nowrap;
             font-size: 14px;
-            max-height: 600px;
+            min-height: 60px;
             overflow-y: auto;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
         }
         .json-result {
             font-family: monospace;
@@ -55,6 +60,8 @@
             padding: 10px;
             border-radius: 4px;
             overflow-x: auto;
+            width: 100%;
+            box-sizing: border-box;
         }
         .analysis-section {
             margin-top: 20px;
@@ -62,6 +69,8 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             background-color: #fafafa;
+            width: 100%;
+            box-sizing: border-box;
         }
         .analysis-title {
             font-weight: bold;
@@ -70,10 +79,13 @@
             color: #333;
         }
         .analysis-item {
-            margin: 5px 0;
-            padding: 5px;
+            margin: 8px 0;
+            padding: 8px 12px;
             background-color: white;
-            border-radius: 3px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 100%;
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -98,6 +110,60 @@
     </div>
 </div>
 <div class="result-container" id="result">🔍 选择图片后点击「上传并分析」，结果将显示在这里...</div>
+
+<div class="form-container" style="margin-top: 30px;">
+    <h3>批量分析整个文件夹</h3>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="file" id="folderInput" webkitdirectory directory multiple style="flex: 1; min-width: 300px;" placeholder="选择包含图片的文件夹">
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+        <div style="margin: 0 10px;">
+            <label for="folderGenderSelect">选择性别：</label>
+            <select id="folderGenderSelect" style="padding: 5px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="male">男</option>
+                <option value="female">女</option>
+            </select>
+        </div>
+    </div>
+    <div style="display: flex; justify-content: flex-start; margin-top: 20px;">
+        <button id="analyzeFolderBtn" onclick="uploadFolderAndAnalyze()" style="white-space: nowrap;">上传文件夹并分析下载Excel</button>
+    </div>
+</div>
+<div class="result-container" id="folderResult" style="margin-top: 20px;">📁 文件夹分析结果将显示在这里...</div>
+
+<div class="form-container" style="margin-top: 30px;">
+    <h3>理想人脸相似度分析</h3>
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+        <!-- 理想人脸选择 -->
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">选择基准人脸图片：</label>
+            <input type="file" id="idealFaceInput" accept=".jpg,.jpeg,.png" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        
+        <!-- 待比较文件夹选择 -->
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">选择待比较的图片文件夹：</label>
+            <input type="file" id="compareFolderInput" webkitdirectory directory multiple style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="选择包含图片的文件夹">
+        </div>
+        
+        <!-- 性别选择 -->
+        <div>
+            <label for="idealFaceGenderSelect" style="display: block; margin-bottom: 5px; font-weight: bold;">选择待比较文件夹中人脸的性别：</label>
+            <select id="idealFaceGenderSelect" style="width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="male">男</option>
+                <option value="female">女</option>
+            </select>
+        </div>
+        
+        <!-- 分析按钮 -->
+        <div>
+            <button id="analyzeIdealFaceBtn" onclick="analyzeIdealFace()" style="width: 100%; padding: 12px; font-size: 16px; background-color: #42b983; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                依据基准人脸并分析相似度
+            </button>
+        </div>
+    </div>
+</div>
+<div class="result-container" id="idealFaceResult" style="margin-top: 20px;">🌟 依据基准人脸分析结果将显示在这里...</div>
 
 <script>
     // 上传文件并调用后端接口
@@ -255,8 +321,356 @@
             return `<div class="json-result">解析结果失败: ${e.message}</div>`;
         }
     }
+    
+    // 上传文件夹并调用后端接口生成Excel
+    function uploadFolderAndAnalyze() {
+        const folderInput = document.getElementById("folderInput");
+        const folderResultDiv = document.getElementById("folderResult");
+        const analyzeFolderBtn = document.getElementById("analyzeFolderBtn");
+        const files = folderInput.files;
+
+        // 校验是否选择了文件
+        if (!files || files.length === 0) {
+            folderResultDiv.innerHTML = "❌ 请先选择要上传的文件夹！";
+            folderResultDiv.style.display = "block";
+            return;
+        }
+
+        // 显示确认弹窗
+        showFolderConfirmationModal(files, folderResultDiv, analyzeFolderBtn);
+    }
+    
+    // 显示文件夹确认弹窗
+    function showFolderConfirmationModal(files, folderResultDiv, analyzeFolderBtn) {
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '9998';
+        
+        // 创建弹窗容器
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.backgroundColor = 'white';
+        modal.style.padding = '20px';
+        modal.style.borderRadius = '8px';
+        modal.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        modal.style.zIndex = '9999';
+        modal.style.maxWidth = '400px';
+        modal.style.minWidth = '300px';
+        
+        // 弹窗内容
+        modal.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <strong>隐私声明</strong>
+            </div>
+            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.4;">
+                您将上传 ${files.length} 个文件进行批量分析。<br>
+                上传的图片分析时会暂时缓存，分析成功后立即删除。
+            </div>
+            <div style="text-align: right;">
+                <button id="folderCancelBtn" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">取消</button>
+                <button id="folderConfirmBtn" style="padding: 8px 16px; background-color: #42b983; color: white; border: none; border-radius: 4px; cursor: pointer;">同意并上传</button>
+            </div>
+        `;
+        
+        // 添加到页面
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('folderCancelBtn').onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(modal);
+            // 恢复按钮状态
+            analyzeFolderBtn.disabled = false;
+            analyzeFolderBtn.textContent = "上传文件夹并分析下载Excel";
+        };
+        
+        // 确认按钮事件
+        document.getElementById('folderConfirmBtn').onclick = function() {
+            // 移除弹窗
+            document.body.removeChild(overlay);
+            document.body.removeChild(modal);
+            
+            // 执行上传分析
+            performFolderUpload(files, folderResultDiv, analyzeFolderBtn);
+        };
+    }
+    
+    // 执行文件夹上传分析
+    function performFolderUpload(files, folderResultDiv, analyzeFolderBtn) {
+        // 禁用按钮并显示加载状态
+        analyzeFolderBtn.disabled = true;
+        analyzeFolderBtn.textContent = "分析中...";
+        folderResultDiv.innerHTML = `⏳ 正在分析 ${files.length} 个文件，请稍候...`;
+        folderResultDiv.style.display = "block";
+
+        // 构建FormData，用于上传文件
+        const formData = new FormData();
+        
+        // 添加所有文件
+        for (let i = 0; i < files.length; i++) {
+            formData.append("files", files[i]);
+        }
+        
+        // 获取性别选择
+        const gender = document.getElementById("folderGenderSelect").value;
+        formData.append("gender", gender);
+
+        // 发送POST请求上传文件并处理
+        fetch("/analyze/folder", {
+            method: "POST",
+            body: formData
+        })
+            .then(response => {
+                if (response.ok) {
+                    // 如果响应是文件下载
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    if (contentDisposition && contentDisposition.includes('attachment')) {
+                        // 处理文件下载
+                        return response.blob().then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'face_analysis_results.xlsx';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            folderResultDiv.innerHTML = `✅ 分析完成！Excel文件已下载 (${files.length} 个文件)`;
+                        });
+                    } else {
+                        return response.json();
+                    }
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text}`);
+                    });
+                }
+            })
+            .then(data => {
+                if (data && typeof data === 'object' && data.success !== undefined) {
+                    if (data.success) {
+                        folderResultDiv.innerHTML = data.message || "✅ 分析完成";
+                    } else {
+                        folderResultDiv.innerHTML = data.message || "❌ 分析失败";
+                    }
+                }
+            })
+            .catch(error => {
+                folderResultDiv.innerHTML = "❌ 请求后端接口失败：" + error.message;
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                analyzeFolderBtn.disabled = false;
+                analyzeFolderBtn.textContent = "上传文件夹并分析下载Excel";
+            });
+    }
+    
+    // 理想人脸分析功能
+    function analyzeIdealFace() {
+        const idealFaceInput = document.getElementById("idealFaceInput");
+        const compareFolderInput = document.getElementById("compareFolderInput");
+        const idealFaceResultDiv = document.getElementById("idealFaceResult");
+        const analyzeIdealFaceBtn = document.getElementById("analyzeIdealFaceBtn");
+        
+        const idealFile = idealFaceInput.files[0];
+        const compareFiles = compareFolderInput.files;
+        
+        // 校验是否选择了文件
+        if (!idealFile) {
+            idealFaceResultDiv.innerHTML = "❌ 请先选择基准人脸图片！";
+            idealFaceResultDiv.style.display = "block";
+            return;
+        }
+        
+        if (!compareFiles || compareFiles.length === 0) {
+            idealFaceResultDiv.innerHTML = "❌ 请先选择要比较的图片文件夹！";
+            idealFaceResultDiv.style.display = "block";
+            return;
+        }
+        
+        // 显示确认弹窗
+        showIdealFaceConfirmationModal(idealFile, compareFiles, idealFaceResultDiv, analyzeIdealFaceBtn);
+    }
+    
+    // 显示理想人脸确认弹窗
+    function showIdealFaceConfirmationModal(idealFile, compareFiles, idealFaceResultDiv, analyzeIdealFaceBtn) {
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '9998';
+        
+        // 创建弹窗容器
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.backgroundColor = 'white';
+        modal.style.padding = '20px';
+        modal.style.borderRadius = '8px';
+        modal.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        modal.style.zIndex = '9999';
+        modal.style.maxWidth = '400px';
+        modal.style.minWidth = '300px';
+        
+        // 弹窗内容
+        modal.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <strong>隐私声明</strong>
+            </div>
+            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.4;">
+                您将上传1张基准人脸图片和1个包含${compareFiles.length}张图片的文件夹进行相似度分析。<br>
+                上传的图片分析时会暂时缓存，分析成功后立即删除。
+            </div>
+            <div style="text-align: right;">
+                <button id="idealFaceCancelBtn" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">取消</button>
+                <button id="idealFaceConfirmBtn" style="padding: 8px 16px; background-color: #42b983; color: white; border: none; border-radius: 4px; cursor: pointer;">同意并上传</button>
+            </div>
+        `;
+        
+        // 添加到页面
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('idealFaceCancelBtn').onclick = function() {
+            document.body.removeChild(overlay);
+            document.body.removeChild(modal);
+            // 恢复按钮状态
+            analyzeIdealFaceBtn.disabled = false;
+            analyzeIdealFaceBtn.textContent = "依据基准人脸分析相似度";
+        };
+        
+        // 确认按钮事件
+        document.getElementById('idealFaceConfirmBtn').onclick = function() {
+            // 移除弹窗
+            document.body.removeChild(overlay);
+            document.body.removeChild(modal);
+            
+            // 执行上传分析
+            performIdealFaceAnalysis(idealFile, compareFiles, idealFaceResultDiv, analyzeIdealFaceBtn);
+        };
+    }
+    
+    // 执行理想人脸分析
+    function performIdealFaceAnalysis(idealFile, compareFiles, idealFaceResultDiv, analyzeIdealFaceBtn) {
+        // 禁用按钮并显示加载状态
+        analyzeIdealFaceBtn.disabled = true;
+        analyzeIdealFaceBtn.textContent = "分析中...";
+        idealFaceResultDiv.innerHTML = `⏳ 正在分析1张基准人脸和${compareFiles.length}张比较图片，请稍候...`;
+        idealFaceResultDiv.style.display = "block";
+
+        // 构建FormData
+        const formData = new FormData();
+        formData.append("idealFile", idealFile);
+        
+        // 添加所有比较文件（作为文件夹处理）
+        for (let i = 0; i < compareFiles.length; i++) {
+            formData.append("compareFiles", compareFiles[i]);
+        }
+        
+        // 获取文件夹中人脸的性别，并自动转换基准人脸性别
+        const folderGender = document.getElementById("idealFaceGenderSelect").value;
+        const idealFaceGender = folderGender === "male" ? "female" : "male";
+        
+        // 上传文件夹性别
+        formData.append("folderGender", folderGender);
+        // 基准人脸性别（自动转换）
+        formData.append("idealFaceGender", idealFaceGender);
+
+        // 发送POST请求
+        fetch("/analyze/ideal-face", {
+            method: "POST",
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    idealFaceResultDiv.innerHTML = formatIdealFaceResult(data.data, data.raw_output);
+                } else {
+                    idealFaceResultDiv.innerHTML = data.message || "❌ 分析失败";
+                }
+            })
+            .catch(error => {
+                idealFaceResultDiv.innerHTML = "❌ 请求后端接口失败：" + error.message;
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                analyzeIdealFaceBtn.disabled = false;
+                analyzeIdealFaceBtn.textContent = "依据基准人脸分析相似度";
+            });
+    }
+    
+    // 格式化理想人脸分析结果
+    function formatIdealFaceResult(jsonStr, rawOutput) {
+        try {
+            const data = JSON.parse(jsonStr);
+            
+            // 如果是简化版本，显示原始输出
+            if (data.raw_output) {
+                return `<div class="json-result"><pre style="white-space: pre-wrap; font-size: 12px;">${data.raw_output}</pre></div>`;
+            }
+            
+            // 如果有完整的JSON数据
+            if (data.similarity_results && data.similarity_results.length > 0) {
+                let html = '<div class="json-result">';
+                html += '<div class="analysis-section">';
+                html += '<div class="analysis-title">🌟 依据基准人脸相似度分析结果</div>';
+                
+                // 显示理想人脸信息
+                if (data.ideal_face_path) {
+                    html += `<div class="analysis-item">基准人脸: ${data.ideal_face_path}</div>`;
+                }
+                
+                html += '<div class="analysis-item" style="font-weight: bold; margin-top: 10px;">相似度排序 (距离越小越相似):</div>';
+                
+                // 显示排序结果
+                data.similarity_results.forEach((result, index) => {
+                    const rank = index + 1;
+                    const distance = result.distance === Infinity ? '无法计算' : result.distance.toFixed(4);
+                    const status = result.status || '成功';
+                    
+                    let itemClass = 'analysis-item';
+                    if (rank <= 3) {
+                        itemClass += ' style="background-color: #e8f5e8; border-left: 3px solid #42b983;"';
+                    }
+                    
+                    html += `<div class="${itemClass}">
+                        <span style="font-weight: bold; color: #42b983;">${rank}.</span>
+                        ${result.image_name} - 距离: ${distance} ${status !== '成功' ? '(' + status + ')' : ''}
+                    </div>`;
+                });
+                
+                html += '</div></div>';
+                return html;
+            }
+            
+            // 默认显示原始输出
+            return `<div class="json-result"><pre style="white-space: pre-wrap; font-size: 12px;">${rawOutput}</pre></div>`;
+            
+        } catch (e) {
+            // 解析失败时显示原始输出
+            return `<div class="json-result"><pre style="white-space: pre-wrap; font-size: 12px;">${rawOutput}</pre></div>`;
+        }
+    }
 </script>
-<div style="margin-top: 20px; text-align: center; font-size: 12px; color: #999; padding: 20px;">
+<div style="margin-top: 30px; text-align: center; font-size: 12px; color: #999; padding: 20px; border-top: 1px solid #eee;">
     公司宣传标语<br>
     未经许可，请勿抄袭
 </div>
