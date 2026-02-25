@@ -8,16 +8,16 @@ import sys
 import io
 import cv2
 import numpy as np
-import pandas as pd  # 新增：导入pandas库用于Excel处理
+import pandas as pd
+
+# 所有数值的Zscore，上传文件夹生成Excel，对应第二个功能，在下面加入了美人的Z分数
 
 # 强制标准输出/错误输出使用UTF-8编码
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-# --- 定义评价标准：均值(mean) + 标准差(std) ---
-# --- 定义评价标准：均值(mean) + 标准差(std) ---
+# 普通人
 MALE_STATS = {
-    # 第一张图数据
     "top": {"mean": 0.1851695, "std": 0.0247877},  # 上庭占比
     "mid": {"mean": 0.4223434, "std": 0.0275991},  # 中庭占比
     "down": {"mean": 0.3924875, "std": 0.0437045},  # 下庭占比
@@ -31,8 +31,6 @@ MALE_STATS = {
     "mandible_angle": {"mean": 143.235952, "std": 6.431666412},  # 下颌角度数(°)
     "fwhr": {"mean": 1.626830811, "std": 0.155841504},  # 面部宽高比
     "golden_angle": {"mean": 73.86741225, "std": 11.01788869},  # 黄金三角度数
-
-    # 第二张图数据
     "eyebrow_h": {"mean": 11.49860265, "std": 2.250228973},  # 眉毛高度(mm)
     "eyebrow_w": {"mean": 42.52375166, "std": 7.034906724},  # 眉毛长度(mm)
     "eyebrow_area": {"mean": 493.4991821, "std": 163.1901423},  # 眉毛大小(mm²)
@@ -44,9 +42,8 @@ MALE_STATS = {
     "inner_eye_angle": {"mean": 44.50140232, "std": 12.43391753},  # 内眦角度数(°)
     "relative_eye_area": {"mean": 0.010774953, "std": 0.004058049},  # 相对眼面积
     "eyelid_tilt": {"mean": 4.247018212, "std": 4.001509392},  # 眼睑裂倾斜度(°)
+    "eyebrow_eye_length": {"mean": 12.4381455748553, "std": 3.75524116144724},  # 眉眼距(mm)
     "nose_ala": {"mean": 41.2943096, "std": 2.51309772},  # 鼻翼宽度(mm)
-
-    # 第三张图数据
     "philtrum_length": {"mean": 15.23487417, "std": 2.592525147},  # 人中长度(mm)
     "lip_h": {"mean": 21.23677152, "std": 6.274081179},  # 嘴唇高度(mm)
     "lip_w": {"mean": 48.4487053, "std": 5.183063933},  # 嘴唇长度(mm)
@@ -58,49 +55,7 @@ MALE_STATS = {
     "chin_angle": {"mean": 140.8392219, "std": 9.870431286},  # 下巴角度(°)
     "face_divergence": {"mean": 0.311201424, "std": 0.023956843},  # 面部聚散度
 }
-MALE_STATS_beauty = {
-    # 第一行数据作为 mean，第二行作为 std
-    "top": {"mean": 0.184579412, "std": 0.019263556},  # 上庭占比
-    "mid": {"mean": 0.416982353, "std": 0.017155371},  # 中庭占比
-    "down": {"mean": 0.398447059, "std": 0.029449271},  # 下庭占比
-    "dist_r_out_ratio": {"mean": 0.250844118, "std": 0.09688761},  # 右眼外侧留白
-    "eye_length": {"mean": 26.93441176, "std": 3.380042804},  # 右眼长度(mm)
-    "eye_dist_ratio": {"mean": 0.259317647, "std": 0.023423835},  # 内眼角间距占比
-    "zygomatic": {"mean": 137.4279412, "std": 7.664152146},  # 颧骨宽度(mm)
-    "face_len": {"mean": 169.6982353, "std": 12.4668012},  # 脸部长度(mm)
-    "forehead_width": {"mean": 139.2911765, "std": 7.106419536},  # 颞部宽度(mm)
-    "mandible_width": {"mean": 108.4605882, "std": 6.449212419},  # 下颌角宽度(mm)
-    "mandible_angle": {"mean": 143.4979412, "std": 6.057050719},  # 下颌角度数(°)
-    "fwhr": {"mean": 1.60615, "std": 0.162913155},  # 面部宽高比
-    "golden_angle": {"mean": 69.41411765, "std": 10.95451723},  # 黄金三角度数
-    "eyebrow_h": {"mean": 11.74647059, "std": 6.242071622},  # 眉毛高度(mm)
 
-    # 第二张图数据
-    "eyebrow_w": {"mean": 43.68264706, "std": 9.083454677},  # 眉毛长度(mm)
-    "eyebrow_area": {"mean": 541.07, "std": 357.3057984},  # 眉毛大小(mm²)
-    "eyebrow_thick": {"mean": 10.77205882, "std": 2.132314097},  # 眉毛粗细(mm)
-    "eyebrow_tilt": {"mean": 11.63058824, "std": 10.10328629},  # 眉毛挑度(°)
-    "eyebrow_curvature": {"mean": 10.88117647, "std": 11.50156889},  # 眉毛弯度(°)
-    "eye_length": {"mean": 26.93441176, "std": 3.380042804},  # 眼睛长度(mm)
-    "eye_width": {"mean": 9.537352941, "std": 1.545938338},  # 眼睛宽度(mm)
-    "eye_area": {"mean": 257.6061765, "std": 58.87479497},  # 眼睛面积(mm²)
-    "inner_eye_angle": {"mean": 50.35147059, "std": 8.101703573},  # 内眦角度数(°)
-    "relative_eye_area": {"mean": 0.013182588, "std": 0.002773578},  # 相对眼面积
-    "eyelid_tilt": {"mean": 4.375588235, "std": 13.86158449},  # 眼睑裂倾斜度
-    "nose_ala": {"mean": 40.78794118, "std": 1.907045419},  # 鼻翼宽度(mm)
-    "philtrum_length": {"mean": 15.37823529, "std": 1.748689376},  # 人中长度(mm)
-
-    # 第三张图数据
-    "lip_h": {"mean": 20.13323529, "std": 3.719940481},  # 嘴唇高度(mm)
-    "lip_w": {"mean": 49.02970588, "std": 5.028517198},  # 嘴唇长度(mm)
-    "lip_thick": {"mean": 9.395588235, "std": 1.693517382},  # 嘴唇厚度(mm)
-    "lip_area": {"mean": 917.1479412, "std": 164.7666426},  # 嘴巴大小(mm²)
-    "mouth_angle": {"mean": 101.5258824, "std": 9.754326376},  # 嘴角弯曲度(°)
-    "chin_len": {"mean": 33.20852941, "std": 5.624084831},  # 下巴长度(mm)
-    "chin_width": {"mean": 61.41294118, "std": 3.425967042},  # 下巴宽度(mm)
-    "chin_angle": {"mean": 137.2311765, "std": 12.73631879},  # 下巴角度(°)
-    "face_divergence": {"mean": 0.30575, "std": 0.015282348},  # 面部聚散度
-}
 FEMALE_STATS = {
     "top": {"mean": 0.1981219, "std": 0.0223635},  # 上庭占比
     "mid": {"mean": 0.4411468, "std": 0.029467},  # 中庭占比
@@ -115,7 +70,6 @@ FEMALE_STATS = {
     "mandible_angle": {"mean": 145.9947797, "std": 6.192613219},  # 下颌角度数(°)
     "fwhr": {"mean": 1.607160338, "std": 0.148666463},  # 面部宽高比
     "golden_angle": {"mean": 69.057639393, "std": 8.747980958},  # 黄金三角度数
-
     "eyebrow_h": {"mean": 12.49225777, "std": 2.043481661},  # 眉毛高度(mm)
     "eyebrow_w": {"mean": 41.43450045, "std": 7.551504583},  # 眉毛长度(mm)
     "eyebrow_area": {"mean": 518.433441, "std": 137.8575516},  # 眉毛大小(mm²)
@@ -127,9 +81,9 @@ FEMALE_STATS = {
     "inner_eye_angle": {"mean": 52.15427709, "std": 11.53557321},  # 内眦角度数(°)
     "relative_eye_area": {"mean": 0.014662185, "std": 0.005016915},  # 相对眼面积
     "eyelid_tilt": {"mean": 7.601595231, "std": 4.235200283},  # 眼睑裂倾斜度(°)
+    "eyebrow_eye_length": {"mean": 11.4829977392615, "std": 2.49852274289319},  # 眉眼距(mm)
     "nose_ala": {"mean": 39.77429067, "std": 2.610021843},  # 鼻翼宽度(mm)
     "philtrum_length": {"mean": 13.4241307, "std": 2.580629796},  # 人中长度(mm)
-
     "lip_h": {"mean": 20.00716873, "std": 5.479511423},  # 嘴唇高度(mm)
     "lip_w": {"mean": 48.94343948, "std": 6.377723857},  # 嘴唇长度(mm)
     "lip_thick": {"mean": 8.518948083, "std": 1.506600678},  # 嘴唇厚度(mm)
@@ -139,53 +93,6 @@ FEMALE_STATS = {
     "chin_width": {"mean": 56.92478267, "std": 4.997264542},  # 下巴宽度(mm)
     "chin_angle": {"mean": 135.4199321, "std": 8.627442248},  # 下巴角度(°)
     "face_divergence": {"mean": 0.316910625, "std": 0.020481753},  # 面部聚散度
-}
-
-FEMALE_STATS_beauty = {
-    # 三庭
-    "top": {"mean": 0.195764, "std": 0.018924553},  # 上庭占比
-    "mid": {"mean": 0.439754, "std": 0.023449471},  # 中庭占比
-    "down": {"mean": 0.36448, "std": 0.034285927},  # 下庭占比
-    # 五眼
-    "dist_r_out_ratio": {"mean": 0.206718, "std": 0.09558037},  # 右眼外侧留白占比
-    "eye_dist_ratio": {"mean": 0.266722, "std": 0.016134873},  # 内眼角间距占比
-    # 脸部
-    "face_len": {"mean": 162.7054, "std": 10.5180067},  # 脸部长度(mm)
-    "forehead_width": {"mean": 134.484, "std": 6.370166089},  # 颞部宽度(mm)
-    "zygomatic": {"mean": 132.5246, "std": 6.378261271},  # 颧骨宽度(mm)
-    "mandible_width": {"mean": 102.8512, "std": 6.117873369},  # 下颌角宽度(mm)
-    "mandible_angle": {"mean": 146.8932, "std": 6.2539058},  # 下颌角度数(°)
-    "fwhr": {"mean": 1.569264, "std": 0.121378942},  # 面部宽高比
-    "golden_angle": {"mean": 67.3638, "std": 7.220087781},  # 黄金三角度数
-    # 眉毛
-    "eyebrow_h": {"mean": 11.8394, "std": 5.360706077},  # 眉毛高度(mm)
-    "eyebrow_w": {"mean": 41.7424, "std": 9.937337583},  # 眉毛长度(mm)
-    "eyebrow_area": {"mean": 507.3924, "std": 314.1225082},  # 眉毛大小(mm²)
-    "eyebrow_thick": {"mean": 10.6362, "std": 1.861317695},  # 眉毛粗细(mm)
-    "eyebrow_tilt": {"mean": 11.2592, "std": 9.580187856},  # 眉毛挑度(°)
-    "eyebrow_curvature": {"mean": 8.9622, "std": 11.05982229},  # 眉毛弯度(°)
-    # 眼睛
-    "eye_length": {"mean": 27.8838, "std": 3.331849871},  # 右眼长度(mm)
-    "eye_width": {"mean": 11.1502, "std": 1.533801147},  # 眼睛宽度(mm)
-    "eye_area": {"mean": 313.659, "std": 71.65914575},  # 眼睛面积(mm²)
-    "inner_eye_angle": {"mean": 58.048, "std": 7.657635144},  # 内眦角度数(°)
-    "relative_eye_area": {"mean": 0.01754324, "std": 0.003913969},  # 相对眼面积
-    "eyelid_tilt": {"mean": 5.6548, "std": 13.98465763},  # 眼睑裂倾斜度(°)
-    # 鼻子
-    "nose_ala": {"mean": 39.652, "std": 2.323069521},  # 鼻翼宽度(mm)
-    "philtrum_length": {"mean": 13.2166, "std": 1.492374765},  # 人中长度(mm)
-    # 嘴唇
-    "lip_h": {"mean": 20.2864, "std": 5.026603529},  # 嘴唇高度(mm)
-    "lip_w": {"mean": 49.2906, "std": 6.143733852},  # 嘴唇长度(mm)
-    "lip_thick": {"mean": 9.1392, "std": 1.599738529},  # 嘴唇厚度(mm)
-    "lip_area": {"mean": 896.0962, "std": 171.7643857},  # 嘴巴大小(mm²)
-    "mouth_angle": {"mean": 106.3872, "std": 13.52027338},  # 嘴角弯曲度(°)
-    # 下巴
-    "chin_len": {"mean": 26.5866, "std": 4.503211125},  # 下巴长度(mm)
-    "chin_width": {"mean": 55.7584, "std": 4.207035232},  # 下巴宽度(mm)
-    "chin_angle": {"mean": 133.9166, "std": 6.860110089},  # 下巴角度(°)
-    # 面部聚散度
-    "face_divergence": {"mean": 0.324128, "std": 0.017739459},  # 面部聚散度
 }
 
 
@@ -199,21 +106,6 @@ def calculate_z_score(value, mean, std):
         return 0.0
     z_score = (value - mean) / std
     return round(z_score, 4)
-
-
-def get_3d_face_fold_score(landmarks, face_length, zygomatic_width, mandible_width):
-    """计算3D面部折叠度综合分数"""
-    if zygomatic_width <= 0:
-        return 0.0
-    jaw_zygo_ratio = mandible_width / zygomatic_width
-    len_zygo_ratio = face_length / zygomatic_width
-    base_2d_score = (1 - jaw_zygo_ratio) * 0.5 + len_zygo_ratio * 0.2
-    base_z = (landmarks[10].z + landmarks[152].z) / 2
-    nose_z = landmarks[1].z
-    depth_diff = abs(nose_z - base_z)
-    depth_score = depth_diff
-    final_score = base_2d_score + depth_score
-    return round(final_score, 4)
 
 
 def get_face_divergence(landmarks, img_w, img_h):
@@ -269,16 +161,7 @@ def get_line_tilt(p1, p2, img_w, img_h):
 
 
 # --- 封装单张图片处理函数 ---
-def process_single_image(image_path, detector, face_key_points, number, gender):
-    """
-    处理单张人脸图片，返回美学测量结果字典（用于写入Excel）
-    :param image_path: 单张图片的完整路径
-    :param detector: 初始化好的人脸检测器
-    :param face_key_points: 人脸关键点映射字典
-    :param number: 照片序号
-    :param gender: 性别（male/female）
-    :return: 包含所有测量指标和Z分数的字典
-    """
+def process_single_image(image_path, detector, number, gender):
     # 初始化结果字典，先填充基础信息和默认空值
     result_dict = {
         # 基础信息
@@ -316,6 +199,7 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
         "内眦角度数Z分数": None,
         "相对眼面积Z分数": None,
         "眼睑裂倾斜度Z分数": None,
+        "眉眼距Z分数": None,
         # 鼻子相关
         "鼻翼宽度Z分数": None,
         "人中长度Z分数": None,
@@ -371,18 +255,12 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 top_ratio = top_h / total_h
                 mid_ratio = mid_h / total_h
                 down_ratio = bot_h / total_h
-
-                # 计算Z分数并存储
                 top_z = calculate_z_score(top_ratio, stats["top"]["mean"], stats["top"]["std"])
                 mid_z = calculate_z_score(mid_ratio, stats["mid"]["mean"], stats["mid"]["std"])
                 down_z = calculate_z_score(down_ratio, stats["down"]["mean"], stats["down"]["std"])
-
-                # 写入字典
                 result_dict["上庭占比Z分数"] = top_z
                 result_dict["中庭占比Z分数"] = mid_z
                 result_dict["下庭占比Z分数"] = down_z
-
-                # 收集Z分数用于综合评分
                 z_scores_list.extend([top_z, mid_z, down_z])
 
                 print(f"三庭比例: {top_ratio:.2f}:{mid_ratio:.2f}:{down_ratio:.2f}")
@@ -407,8 +285,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 dist_mid_ratio = dist_mid / zygomatic_width
                 dist_l_eye = get_distance(landmarks[362], landmarks[263], img_w, img_h) * factor
                 dist_l_out = get_distance(landmarks[263], landmarks[454], img_w, img_h) * factor
-
-                # 计算Z分数
                 dist_r_out_ratio_z = calculate_z_score(dist_r_out_ratio, stats["dist_r_out_ratio"]["mean"],
                                                        stats["dist_r_out_ratio"]["std"])
                 eye_dist_ratio_z = calculate_z_score(dist_mid_ratio, stats["eye_dist_ratio"]["mean"],
@@ -425,7 +301,7 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 print(f"右眼外侧留白距离: {dist_r_out:.2f} mm")
                 print(f"右眼外侧留白距离占比: {dist_r_out_ratio:.2f}")
                 print(f"右眼长度: {dist_r_eye:.2f} mm")
-                print(f"内眼角间距: {dist_mid:.2f} mm")  # 通常作为基准1
+                print(f"内眼角间距: {dist_mid:.2f} mm")
                 print(f"内眼角间距占比: {dist_mid_ratio:.2f}")
                 print(f"左眼长度: {dist_l_eye:.2f} mm")
                 print(f"左眼外侧留白距离: {dist_l_out:.2f} mm")
@@ -443,7 +319,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 upface_height = get_distance(landmarks[9], landmarks[0], img_w, img_h) * factor  # 上脸高度
                 fwhr = zygomatic_width / upface_height
 
-                # 计算Z分数
                 face_len_z = calculate_z_score(face_length, stats["face_len"]["mean"], stats["face_len"]["std"])
                 forehead_z = calculate_z_score(forehead_width, stats["forehead_width"]["mean"],
                                                stats["forehead_width"]["std"])
@@ -454,7 +329,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                                                      stats["mandible_angle"]["std"])
                 fwhr_z = calculate_z_score(fwhr, stats["fwhr"]["mean"], stats["fwhr"]["std"])
 
-                # 写入字典
                 result_dict["脸部长度Z分数"] = face_len_z
                 result_dict["颞部宽度Z分数"] = forehead_z
                 result_dict["颧骨宽度Z分数"] = zygomatic_z
@@ -462,7 +336,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 result_dict["下颌角度数Z分数"] = mandible_angle_z
                 result_dict["fWHRZ分数"] = fwhr_z
 
-                # 收集Z分数
                 z_scores_list.extend([face_len_z, forehead_z, zygomatic_z, mandible_z, mandible_angle_z, fwhr_z])
 
                 print(f"脸部长度: {face_length:.2f} mm")
@@ -484,17 +357,10 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 # 4. 黄金三角
                 print(f"\n● 黄金三角")
                 golden_angle = get_angle(landmarks[468], landmarks[1], landmarks[473], img_w, img_h)
-
-                # 计算Z分数
                 golden_angle_z = calculate_z_score(golden_angle, stats["golden_angle"]["mean"],
                                                    stats["golden_angle"]["std"])
-
-                # 写入字典
                 result_dict["黄金三角度数Z分数"] = golden_angle_z
-
-                # 收集Z分数
                 z_scores_list.append(golden_angle_z)
-
                 print(f"黄金三角度数: {golden_angle:.2f} °")
                 print(f"黄金三角度数评价（Z-score）: {golden_angle_z}")
 
@@ -507,7 +373,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 eyebrow_tilt = get_twopoint_angle(landmarks[105], landmarks[107], img_w, img_h)  # 挑度
                 eyebrow_curvature = get_twopoint_angle(landmarks[46], landmarks[55], img_w, img_h)  # 弯度
 
-                # 计算Z分数
                 eyebrow_h_z = calculate_z_score(eyebrow_h, stats["eyebrow_h"]["mean"], stats["eyebrow_h"]["std"])
                 eyebrow_w_z = calculate_z_score(eyebrow_w, stats["eyebrow_w"]["mean"], stats["eyebrow_w"]["std"])
                 eyebrow_area_z = calculate_z_score(eyebrow_area, stats["eyebrow_area"]["mean"],
@@ -519,7 +384,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 eyebrow_curvature_z = calculate_z_score(eyebrow_curvature, stats["eyebrow_curvature"]["mean"],
                                                         stats["eyebrow_curvature"]["std"])
 
-                # 写入字典
                 result_dict["眉毛高度Z分数"] = eyebrow_h_z
                 result_dict["眉毛长度Z分数"] = eyebrow_w_z
                 result_dict["眉毛大小Z分数"] = eyebrow_area_z
@@ -527,11 +391,9 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 result_dict["眉毛挑度Z分数"] = eyebrow_tilt_z
                 result_dict["眉毛弯度Z分数"] = eyebrow_curvature_z
 
-                # 收集Z分数
                 z_scores_list.extend(
                     [eyebrow_h_z, eyebrow_w_z, eyebrow_area_z, eyebrow_thick_z, eyebrow_tilt_z, eyebrow_curvature_z])
 
-                # 输出基础数值 + 每个特征的Z分数评价
                 print(f"眉毛高度: {eyebrow_h:.2f} mm")
                 print(f"眉毛高度评价（Z-score）: {eyebrow_h_z}")
                 print(f"眉毛长度: {eyebrow_w:.2f} mm")
@@ -549,23 +411,19 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 print(f"\n● 眼睛")
                 eye_width = get_distance(landmarks[159], landmarks[145], img_w, img_h) * factor
                 eye_length = get_distance(landmarks[33], landmarks[133], img_w, img_h) * factor
-                inner_eye_angle = get_angle(landmarks[157], landmarks[133], landmarks[154], img_w, img_h)  # 内眦角度
+                inner_eye_angle = get_angle(landmarks[157], landmarks[133], landmarks[154], img_w, img_h)
                 eye_area = eye_length * eye_width
 
-                # 新增：相对眼面积（眼面积 / 面部面积）
-                # 计算面部面积（使用面部外轮廓关键点）
                 face_contour_indices = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
                                         397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
                                         172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
                 face_pts = np.array([[landmarks[i].x * img_w, landmarks[i].y * img_h] for i in face_contour_indices],
                                     dtype=np.int32)
-                face_area = cv2.contourArea(face_pts) * (factor ** 2)  # 转换为实际面积（mm²）
-                relative_eye_area = eye_area / face_area  # 相对眼面积
+                face_area = cv2.contourArea(face_pts) * (factor ** 2)
+                relative_eye_area = eye_area / face_area
 
-                # 新增：眼睑裂倾斜度（外眼角-内眼角连线的倾斜角度）
-                eyelid_tilt = get_line_tilt(landmarks[33], landmarks[133], img_w, img_h)  # 右眼眼睑裂倾斜度
+                eyelid_tilt = get_line_tilt(landmarks[33], landmarks[133], img_w, img_h)
 
-                # 计算Z分数
                 eye_length_z = calculate_z_score(eye_length, stats["eye_length"]["mean"], stats["eye_length"]["std"])
                 eye_width_z = calculate_z_score(eye_width, stats["eye_width"]["mean"], stats["eye_width"]["std"])
                 eye_area_z = calculate_z_score(eye_area, stats["eye_area"]["mean"], stats["eye_area"]["std"])
@@ -576,19 +434,21 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 eyelid_tilt_z = calculate_z_score(eyelid_tilt, stats["eyelid_tilt"]["mean"],
                                                   stats["eyelid_tilt"]["std"])
 
-                # 写入字典
+                # 眉眼距
+                eyebrow_eye_length = get_distance(landmarks[223], landmarks[159], img_w, img_h) * factor
+                eyebrow_eye_length_z = calculate_z_score(eyebrow_eye_length, stats["eyebrow_eye_length"]["mean"],
+                                                         stats["eyebrow_eye_length"]["std"])
                 result_dict["眼睛长度Z分数"] = eye_length_z
                 result_dict["眼睛宽度Z分数"] = eye_width_z
                 result_dict["眼睛面积Z分数"] = eye_area_z
                 result_dict["内眦角度数Z分数"] = inner_eye_angle_z
                 result_dict["相对眼面积Z分数"] = relative_eye_area_z
                 result_dict["眼睑裂倾斜度Z分数"] = eyelid_tilt_z
+                result_dict["眉眼距Z分数"] = eyebrow_eye_length_z
 
-                # 收集Z分数
                 z_scores_list.extend(
-                    [eye_length_z, eye_width_z, eye_area_z, inner_eye_angle_z, relative_eye_area_z, eyelid_tilt_z])
+                    [eye_length_z, eye_width_z, eye_area_z, inner_eye_angle_z, relative_eye_area_z, eyelid_tilt_z, eyebrow_eye_length_z])
 
-                # 输出基础数值 + 每个特征的Z分数评价
                 print(f"眼睛长度: {eye_length:.2f} mm")
                 print(f"眼睛长度评价（Z-score）: {eye_length_z}")
                 print(f"眼睛宽度: {eye_width:.2f} mm")
@@ -597,12 +457,11 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 print(f"眼睛大小评价（Z-score）: {eye_area_z}")
                 print(f"内眦角度数: {inner_eye_angle:.2f} °")
                 print(f"内眦角度数评价（Z-score）: {inner_eye_angle_z}")
-                # 新增：相对眼面积输出
                 print(f"相对眼面积: {relative_eye_area:.6f}")
                 print(f"相对眼面积评价（Z-score）: {relative_eye_area_z}（越大眼睛相对面部越大）")
-                # 新增：眼睑裂倾斜度输出
                 print(f"右眼眼睑裂倾斜度: {eyelid_tilt:.2f} °")
                 print(f"眼睑裂倾斜度评价（Z-score）: {eyelid_tilt_z}（正值向上倾斜，负值向下倾斜）")
+                print(f"眼睑裂倾斜度评价（Z-score）: {eyebrow_eye_length_z}")
 
                 # 7. 鼻子
                 print(f"\n● 鼻子")
@@ -686,20 +545,16 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 # 下巴角度
                 chin_angle = get_angle(landmarks[149], landmarks[152], landmarks[378], img_w, img_h)
 
-                # 计算Z分数
                 chin_len_z = calculate_z_score(chin_len, stats["chin_len"]["mean"], stats["chin_len"]["std"])
                 chin_width_z = calculate_z_score(chin_width, stats["chin_width"]["mean"], stats["chin_width"]["std"])
                 chin_angle_z = calculate_z_score(chin_angle, stats["chin_angle"]["mean"], stats["chin_angle"]["std"])
 
-                # 写入字典
                 result_dict["下巴长度Z分数"] = chin_len_z
                 result_dict["下巴宽度Z分数"] = chin_width_z
                 result_dict["下巴角度Z分数"] = chin_angle_z
 
-                # 收集Z分数
                 z_scores_list.extend([chin_len_z, chin_width_z, chin_angle_z])
 
-                # 输出基础数值 + 每个特征的Z分数评价
                 print(f"下巴长度: {chin_len:.2f} mm")
                 print(f"下巴长度评价（Z-score）: {chin_len_z}")
                 print(f"下巴宽度: {chin_width:.2f} mm")
@@ -711,21 +566,16 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 print(f"\n● 面部聚散度")
                 face_divergence_ratio = get_face_divergence(landmarks, img_w, img_h)
 
-                # 计算Z分数
                 face_divergence_z = calculate_z_score(face_divergence_ratio, stats["face_divergence"]["mean"],
                                                       stats["face_divergence"]["std"])
 
-                # 写入字典
                 result_dict["面部聚散度Z分数"] = face_divergence_z
 
-                # 收集Z分数
                 z_scores_list.append(face_divergence_z)
 
                 print(f"面部聚散度: {face_divergence_ratio:.4f}")
                 print(f"面部聚散度评价（Z-score）: {face_divergence_z}(越正越分散)")
 
-
-                # 计算综合Z分数（所有有效Z分数的平均值）
                 if z_scores_list:
                     total_z_score_absdayu1 = sum(1 for z in z_scores_list if abs(z) > 1)
                     result_dict["综合Z分数"] = total_z_score_absdayu1
@@ -734,7 +584,6 @@ def process_single_image(image_path, detector, face_key_points, number, gender):
                 else:
                     result_dict["Z分数绝对值大于1数量"] = 0.0
 
-            # 更新处理状态为成功
             result_dict["处理状态"] = "成功（检测到人脸）"
         else:
             print(f"❌ 图片 {image_name} 未检测到人脸")
@@ -775,38 +624,24 @@ def get_valid_image_paths(input_path):
 
 
 if __name__ == "__main__":
-    """
-    使用说明：
-    命令行调用格式：
-    python zscoreexcel.py <输入路径> <性别> [输出文件名]
-    
-    示例：
-    python zscoreexcel.py "C:\\Users\\Bruce\\Desktop\\photos" male
-    python zscoreexcel.py "C:\\Users\\Bruce\\Desktop\\photos" female results.xlsx
-    
-    参数说明：
-    - 输入路径：包含图片的文件夹路径
-    - 性别：male（男性）或 female（女性）
-    - 输出文件名：可选，Excel文件输出路径（默认：face_analysis_results.xlsx）
-    """
-    # 配置参数 - 支持命令行参数和默认值
-    if len(sys.argv) >= 3:
-        # 生产环境：使用命令行参数
-        input_path = sys.argv[1]  # 第一个参数：输入路径
-        gender = sys.argv[2].lower()  # 第二个参数：性别
-        # 第三个参数（可选）：输出Excel路径
-        output_excel_path = sys.argv[3] if len(sys.argv) > 3 else "face_analysis_results.xlsx"
+    if len(sys.argv) < 3:
+        print("❌ 使用方法：python 脚本名.py <图片路径/文件夹路径> <性别(male/female)>")
+        sys.exit(1)
+    input_path = sys.argv[1]  # 第一个参数：输入路径
+    gender = sys.argv[2].lower()  # 第二个参数：性别
+    # 第三个参数：输出Excel路径
+    output_excel_path = sys.argv[3] if len(sys.argv) > 3 else "face_analysis_results.xlsx"
 
     # 参数校验
     if gender not in ['male', 'female']:
         print(f"❌ 性别参数错误：'{gender}'，请使用 male 或 female")
         sys.exit(1)
-    
+
     # 检查输入路径是否存在
     if not os.path.exists(input_path):
         print(f"❌ 输入路径不存在：{input_path}")
         sys.exit(1)
-    
+
     print(f"📁 输入路径: {input_path}")
     print(f"👤 性别设置: {gender}")
     print(f"📊 输出文件: {output_excel_path}")
@@ -821,17 +656,6 @@ if __name__ == "__main__":
     options = vision.FaceLandmarkerOptions(base_options=base_options, num_faces=1, output_face_blendshapes=True)
     detector = vision.FaceLandmarker.create_from_options(options)
 
-    # 人脸关键点映射
-    face_key_points = {
-        "额头发际线中心": 10, "双眉中心": 9, "鼻下点(人中顶部)": 2, "下巴尖": 152,
-        "右颧骨最外侧": 234, "右外眼角": 33, "右内眼角": 133, "左内眼角": 362,
-        "左外眼角": 263, "左颧骨最外侧": 454, "右颞部边缘": 127, "左颞部边缘": 356,
-        "右下额边缘": 172, "左下额边缘": 397, "左耳耳际": 361, "右眼瞳孔": 468,
-        "左眼瞳孔": 473, "鼻尖": 1, "右眉外侧上部": 70, "右眉外侧下部": 46,
-        "右眉最高点": 105, "右眉中部下": 223, "右眉内侧上部": 107, "右眉内侧下部": 55,
-        "右眼上眼睑中心": 159, "右眼下眼睑中心": 145, "右鼻翼": 129, "左鼻翼": 358,
-        "右嘴角": 61, "左嘴角": 291, "下巴左侧": 378, "下巴右侧": 149
-    }
 
     # 批量处理图片
     image_paths = get_valid_image_paths(input_path)
@@ -841,7 +665,7 @@ if __name__ == "__main__":
     else:
         print(f"✅️ 共找到 {len(image_paths)} 张有效图片，开始处理...")
         for idx, img_path in enumerate(image_paths, 1):
-            single_result = process_single_image(img_path, detector, face_key_points, idx, gender)
+            single_result = process_single_image(img_path, detector, idx, gender)
             all_results.append(single_result)
 
     # 将结果写入Excel
@@ -850,61 +674,50 @@ if __name__ == "__main__":
             print(f"\n📊 正在生成Excel文件...")
             print(f"📁 输出路径: {os.path.abspath(output_excel_path)}")
             print(f"📝 数据行数: {len(all_results)}")
-            
+
             # 转换为pandas DataFrame
             df = pd.DataFrame(all_results)
             print(f"📊 DataFrame形状: {df.shape}")
-            # ========== 新增：计算并添加统计行 ==========
-            # 1. 筛选需要统计的Z分数列（排除文本列）
             z_score_cols = [col for col in df.columns if "Z分数" in col and col != "综合Z分数"]
 
-            # ----- 新增：修剪均值函数 -----
             def trimmed_mean(series):
-                """去掉一个最大值和一个最小值后的均值，若样本数<3则返回NaN"""
                 if series.count() < 3:
                     return np.nan
                 sorted_vals = series.dropna().sort_values()
                 trimmed = sorted_vals.iloc[1:-1]  # 去掉首尾
                 return trimmed.mean().round(4)
-            # ------------------------------
 
-            # 2. 计算统计量（均值、中位数、均值&中位数均值、标准差、方差）
             mean_vals = df[z_score_cols].mean().round(4)
             median_vals = df[z_score_cols].median().round(4)
             mean_median_vals = ((mean_vals + median_vals) / 2).round(4)
             std_vals = df[z_score_cols].std().round(4)
             var_vals = df[z_score_cols].var().round(4)
 
-            # ----- 新增：计算修剪均值 -----
             trimmed_mean_vals = {}
             for col in z_score_cols:
                 trimmed_mean_vals[col] = trimmed_mean(df[col])
-            # 单独处理综合Z分数列
             trimmed_mean_vals["综合Z分数"] = trimmed_mean(df["综合Z分数"])
-            # ------------------------------
 
-            # 3. 构造统计行字典（补充文本列信息）
             mean_row = {"照片序号": "统计", "照片名称": "均值", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
-            median_row = {"照片序号": "统计", "照片名称": "中位数", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
-            mean_median_row = {"照片序号": "统计", "照片名称": "均值和中位数的均值", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
+            median_row = {"照片序号": "统计", "照片名称": "中位数", "照片路径": "-", "性别": gender,
+                          "处理状态": "统计行"}
+            mean_median_row = {"照片序号": "统计", "照片名称": "均值和中位数的均值", "照片路径": "-", "性别": gender,
+                               "处理状态": "统计行"}
             std_row = {"照片序号": "统计", "照片名称": "标准差", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
             var_row = {"照片序号": "统计", "照片名称": "方差", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
 
-            # 4. 填充Z分数列的统计值
             mean_row.update(mean_vals.to_dict())
             median_row.update(median_vals.to_dict())
             mean_median_row.update(mean_median_vals.to_dict())
             std_row.update(std_vals.to_dict())
             var_row.update(var_vals.to_dict())
 
-            # 5. 补充综合Z分数的统计
             mean_row["综合Z分数"] = df["综合Z分数"].mean().round(4)
             median_row["综合Z分数"] = df["综合Z分数"].median().round(4)
             mean_median_row["综合Z分数"] = ((df["综合Z分数"].mean() + df["综合Z分数"].median()) / 2).round(4)
             std_row["综合Z分数"] = df["综合Z分数"].std().round(4)
             var_row["综合Z分数"] = df["综合Z分数"].var().round(4)
 
-            # ----- 新增：构建“去掉最高最低后的均值”行 -----
             trimmed_mean_row = {
                 "照片序号": "统计",
                 "照片名称": "去掉最高最低后的均值",
@@ -912,68 +725,17 @@ if __name__ == "__main__":
                 "性别": gender,
                 "处理状态": "统计行"
             }
-            trimmed_mean_row.update(trimmed_mean_vals)  # 已包含综合Z分数
-            # --------------------------------------------
-
-            # 6. 追加统计行到DataFrame（先空行，再统计行）
+            trimmed_mean_row.update(trimmed_mean_vals)
             empty_row = pd.Series([None] * len(df.columns), index=df.columns)
             df = pd.concat([df, pd.DataFrame([empty_row])], ignore_index=True)
-            # 将统计行（均值→中位数→均值&中位数均值→标准差→方差→修剪均值）一起添加
             df = pd.concat([
                 df,
                 pd.DataFrame([mean_row, median_row, mean_median_row, std_row, var_row, trimmed_mean_row])
             ], ignore_index=True)
-            # ===================================================
 
-            if gender == "female":
-                beauty_row = {
-                    "照片序号": "标准",
-                    "照片名称": "美女均值",
-                    "照片路径": "-",
-                    "性别": "female",
-                    "处理状态": "标准行"
-                }
-
-                # 对应 FEMALE_STATS_beauty 里的 mean，直接填 0（因为是标准本身）
-                beauty_cols = {
-                    "上庭占比Z分数": -0.1035,
-                    "中庭占比Z分数": -0.0480,
-                    "下庭占比Z分数": 0.0848,
-                    "右眼外侧留白占比Z分数": 0.1083,
-                    "内眼角间距占比Z分数": -0.1669,
-                    "脸部长度Z分数": 0.1169,
-                    "颞部宽度Z分数": -0.2671,
-                    "颧骨宽度Z分数": -0.3018,
-                    "下颌角宽度Z分数": -0.1759,
-                    "下颌角度数Z分数": 0.1427,
-                    "fWHRZ分数": -0.2571,
-                    "黄金三角度数Z分数": -0.1936,
-                    "眉毛高度Z分数": -0.3252,
-                    "眉毛长度Z分数": 0.0417,
-                    "眉毛大小Z分数": -0.0815,
-                    "眉毛粗细Z分数": -0.3634,
-                    "眉毛挑度Z分数": 0.7502,
-                    "眉毛弯度Z分数": 1.5107,
-                    "眼睛长度Z分数": 0.4953,
-                    "眼睛宽度Z分数": 0.5685,
-                    "眼睛面积Z分数": 0.6588,
-                    "内眦角度数Z分数": 0.5126,
-                    "相对眼面积Z分数": 0.5759,
-                    "眼睑裂倾斜度Z分数": -0.459,
-                    "鼻翼宽度Z分数": -0.0442,
-                    "人中长度Z分数": -0.0782,
-                    "嘴唇高度Z分数": 0.05,
-                    "嘴唇长度Z分数": 0.0535,
-                    "嘴唇厚度Z分数": 0.4085,
-                    "嘴巴大小Z分数": 0.3443,
-                    "嘴角弯曲度Z分数": 0.4494,
-                    "下巴长度Z分数": 0.0399,
-                    "下巴宽度Z分数": -0.2343,
-                    "下巴角度Z分数": -0.1725,
-                    "面部聚散度Z分数": -0.3511,
-                    "综合Z分数": 10.9
-                }
-            elif gender == "male":
+            beauty_row = {}
+            beauty_cols = {}
+            if gender == "male":
                 beauty_row = {
                     "照片序号": "标准",
                     "照片名称": "帅哥均值",
@@ -982,7 +744,6 @@ if __name__ == "__main__":
                     "处理状态": "标准行"
                 }
 
-                # 对应 FEMALE_STATS_beauty 里的 mean，直接填 0（因为是标准本身）
                 beauty_cols = {
                     "上庭占比Z分数": -0.0241,
                     "中庭占比Z分数": -0.1940,
@@ -1008,6 +769,7 @@ if __name__ == "__main__":
                     "内眦角度数Z分数": 0.4720,
                     "相对眼面积Z分数": 0.5970,
                     "眼睑裂倾斜度Z分数": 0.0332,
+                    "眉眼距Z分数": -0.3636,
                     "鼻翼宽度Z分数": -0.2050,
                     "人中长度Z分数": 0.0516,
                     "嘴唇高度Z分数": -0.1773,
@@ -1019,14 +781,63 @@ if __name__ == "__main__":
                     "下巴宽度Z分数": 0.0448,
                     "下巴角度Z分数": -0.3671,
                     "面部聚散度Z分数": -0.2287,
-                    "综合Z分数": 10.5143
+                    "综合Z分数": 10.6286
                 }
+            elif gender == "female":
+                beauty_row = {
+                    "照片序号": "标准",
+                    "照片名称": "美女均值",
+                    "照片路径": "-",
+                    "性别": "female",
+                    "处理状态": "标准行"
+                }
+
+                beauty_cols = {
+                    "上庭占比Z分数": -0.1035,
+                    "中庭占比Z分数": -0.0480,
+                    "下庭占比Z分数": 0.0848,
+                    "右眼外侧留白占比Z分数": 0.1083,
+                    "内眼角间距占比Z分数": -0.1669,
+                    "脸部长度Z分数": 0.1169,
+                    "颞部宽度Z分数": -0.2671,
+                    "颧骨宽度Z分数": -0.3018,
+                    "下颌角宽度Z分数": -0.1759,
+                    "下颌角度数Z分数": 0.1427,
+                    "fWHRZ分数": -0.2571,
+                    "黄金三角度数Z分数": -0.1936,
+                    "眉毛高度Z分数": -0.3252,
+                    "眉毛长度Z分数": 0.0417,
+                    "眉毛大小Z分数": -0.0815,
+                    "眉毛粗细Z分数": -0.3634,
+                    "眉毛挑度Z分数": 0.7502,
+                    "眉毛弯度Z分数": 1.5107,
+                    "眼睛长度Z分数": 0.4953,
+                    "眼睛宽度Z分数": 0.5685,
+                    "眼睛面积Z分数": 0.6588,
+                    "内眦角度数Z分数": 0.5126,
+                    "相对眼面积Z分数": 0.5759,
+                    "眼睑裂倾斜度Z分数": -0.459,
+                    "眉眼距Z分数": -0.3015,
+                    "鼻翼宽度Z分数": -0.0442,
+                    "人中长度Z分数": -0.0782,
+                    "嘴唇高度Z分数": 0.05,
+                    "嘴唇长度Z分数": 0.0535,
+                    "嘴唇厚度Z分数": 0.4085,
+                    "嘴巴大小Z分数": 0.3443,
+                    "嘴角弯曲度Z分数": 0.4494,
+                    "下巴长度Z分数": 0.0399,
+                    "下巴宽度Z分数": -0.2343,
+                    "下巴角度Z分数": -0.1725,
+                    "面部聚散度Z分数": -0.3511,
+                    "综合Z分数": 11
+                }
+
             beauty_row.update(beauty_cols)
             df = pd.concat([df, pd.DataFrame([beauty_row])], ignore_index=True)
 
             # 保存为Excel文件
             df.to_excel(output_excel_path, index=False, engine="openpyxl")
-            
+
             # 验证文件是否成功创建
             if os.path.exists(output_excel_path) and os.path.getsize(output_excel_path) > 0:
                 print(f"\n✅ Excel文件保存成功！路径：{os.path.abspath(output_excel_path)}")
@@ -1035,10 +846,11 @@ if __name__ == "__main__":
             else:
                 print(f"\n❌ Excel文件创建失败：文件不存在或为空")
                 sys.exit(1)
-                
+
         except Exception as e:
             print(f"\n❌ 写入Excel失败：{str(e)}")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
     else:
