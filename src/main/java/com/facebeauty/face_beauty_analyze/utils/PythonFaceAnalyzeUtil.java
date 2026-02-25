@@ -16,9 +16,11 @@ import java.util.regex.Pattern;
  */
 public class PythonFaceAnalyzeUtil {
     // 1. 配置关键路径（保持你原来的路径不变，根据实际情况修改）
-    private static final String PYTHON_SCRIPT_PATH = "D:\\Bias\\20.3\\face_beauty_analyze\\scripts\\python\\ZscoreAllwithbanshen.py";
-    private static final String ZSCORE_EXCEL_SCRIPT_PATH = "D:\\Bias\\20.3\\face_beauty_analyze\\scripts\\python\\zscoreexcelwithuandzws.py";
-    private static final String IDEAL_FACE_SCRIPT_PATH = "D:\\Bias\\20.3\\face_beauty_analyze\\scripts\\python\\IdealFaceGenerator.py";
+    // C:\yan\IdeaProjects\face_beauty_analyze\scripts\python\ZscoreAllwithbanshen.py
+    private static final String BASE = "D:\\Bias\\22.3\\face_beauty_analyze";
+    private static final String PYTHON_SCRIPT_PATH = BASE + "\\scripts\\python\\ZscoreAllwithbanshen.py";
+    private static final String ZSCORE_EXCEL_SCRIPT_PATH = BASE + "\\scripts\\python\\zscoreexcelwithuandzws.py";
+    private static final String IDEAL_FACE_SCRIPT_PATH = BASE + "\\scripts\\python\\IdealFaceGenerator.py";
     private static final String PYTHON_COMMAND = "python";
 
     /**

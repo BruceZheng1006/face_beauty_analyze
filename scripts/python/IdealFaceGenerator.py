@@ -14,9 +14,7 @@ import json
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-# 美的人脸参数
 MALE_STATS = {
-    # 第一行数据作为 mean，第二行作为 std
     "top": {"mean": 0.184579412, "std": 0.019263556},  # 上庭占比
     "mid": {"mean": 0.416982353, "std": 0.017155371},  # 中庭占比
     "down": {"mean": 0.398447059, "std": 0.029449271},  # 下庭占比
@@ -31,8 +29,6 @@ MALE_STATS = {
     "fwhr": {"mean": 1.60615, "std": 0.162913155},  # 面部宽高比
     "golden_angle": {"mean": 69.41411765, "std": 10.95451723},  # 黄金三角度数
     "eyebrow_h": {"mean": 11.74647059, "std": 6.242071622},  # 眉毛高度(mm)
-
-    # 第二张图数据
     "eyebrow_w": {"mean": 43.68264706, "std": 9.083454677},  # 眉毛长度(mm)
     "eyebrow_area": {"mean": 541.07, "std": 357.3057984},  # 眉毛大小(mm²)
     "eyebrow_thick": {"mean": 10.77205882, "std": 2.132314097},  # 眉毛粗细(mm)
@@ -46,8 +42,6 @@ MALE_STATS = {
     "eyelid_tilt": {"mean": 4.375588235, "std": 13.86158449},  # 眼睑裂倾斜度
     "nose_ala": {"mean": 40.78794118, "std": 1.907045419},  # 鼻翼宽度(mm)
     "philtrum_length": {"mean": 15.37823529, "std": 1.748689376},  # 人中长度(mm)
-
-    # 第三张图数据
     "lip_h": {"mean": 20.13323529, "std": 3.719940481},  # 嘴唇高度(mm)
     "lip_w": {"mean": 49.02970588, "std": 5.028517198},  # 嘴唇长度(mm)
     "lip_thick": {"mean": 9.395588235, "std": 1.693517382},  # 嘴唇厚度(mm)
@@ -58,16 +52,12 @@ MALE_STATS = {
     "chin_angle": {"mean": 137.2311765, "std": 12.73631879},  # 下巴角度(°)
     "face_divergence": {"mean": 0.30575, "std": 0.015282348},  # 面部聚散度
 }
-
 FEMALE_STATS = {
-    # 三庭
     "top": {"mean": 0.195764, "std": 0.018924553},  # 上庭占比
     "mid": {"mean": 0.439754, "std": 0.023449471},  # 中庭占比
     "down": {"mean": 0.36448, "std": 0.034285927},  # 下庭占比
-    # 五眼
     "dist_r_out_ratio": {"mean": 0.206718, "std": 0.09558037},  # 右眼外侧留白占比
     "eye_dist_ratio": {"mean": 0.266722, "std": 0.016134873},  # 内眼角间距占比
-    # 脸部
     "face_len": {"mean": 162.7054, "std": 10.5180067},  # 脸部长度(mm)
     "forehead_width": {"mean": 134.484, "std": 6.370166089},  # 颞部宽度(mm)
     "zygomatic": {"mean": 132.5246, "std": 6.378261271},  # 颧骨宽度(mm)
@@ -75,36 +65,31 @@ FEMALE_STATS = {
     "mandible_angle": {"mean": 146.8932, "std": 6.2539058},  # 下颌角度数(°)
     "fwhr": {"mean": 1.569264, "std": 0.121378942},  # 面部宽高比
     "golden_angle": {"mean": 67.3638, "std": 7.220087781},  # 黄金三角度数
-    # 眉毛
     "eyebrow_h": {"mean": 11.8394, "std": 5.360706077},  # 眉毛高度(mm)
     "eyebrow_w": {"mean": 41.7424, "std": 9.937337583},  # 眉毛长度(mm)
     "eyebrow_area": {"mean": 507.3924, "std": 314.1225082},  # 眉毛大小(mm²)
     "eyebrow_thick": {"mean": 10.6362, "std": 1.861317695},  # 眉毛粗细(mm)
     "eyebrow_tilt": {"mean": 11.2592, "std": 9.580187856},  # 眉毛挑度(°)
     "eyebrow_curvature": {"mean": 8.9622, "std": 11.05982229},  # 眉毛弯度(°)
-    # 眼睛
     "eye_length": {"mean": 27.8838, "std": 3.331849871},  # 右眼长度(mm)
     "eye_width": {"mean": 11.1502, "std": 1.533801147},  # 眼睛宽度(mm)
     "eye_area": {"mean": 313.659, "std": 71.65914575},  # 眼睛面积(mm²)
     "inner_eye_angle": {"mean": 58.048, "std": 7.657635144},  # 内眦角度数(°)
     "relative_eye_area": {"mean": 0.01754324, "std": 0.003913969},  # 相对眼面积
     "eyelid_tilt": {"mean": 5.6548, "std": 13.98465763},  # 眼睑裂倾斜度(°)
-    # 鼻子
     "nose_ala": {"mean": 39.652, "std": 2.323069521},  # 鼻翼宽度(mm)
     "philtrum_length": {"mean": 13.2166, "std": 1.492374765},  # 人中长度(mm)
-    # 嘴唇
     "lip_h": {"mean": 20.2864, "std": 5.026603529},  # 嘴唇高度(mm)
     "lip_w": {"mean": 49.2906, "std": 6.143733852},  # 嘴唇长度(mm)
     "lip_thick": {"mean": 9.1392, "std": 1.599738529},  # 嘴唇厚度(mm)
     "lip_area": {"mean": 896.0962, "std": 171.7643857},  # 嘴巴大小(mm²)
     "mouth_angle": {"mean": 106.3872, "std": 13.52027338},  # 嘴角弯曲度(°)
-    # 下巴
     "chin_len": {"mean": 26.5866, "std": 4.503211125},  # 下巴长度(mm)
     "chin_width": {"mean": 55.7584, "std": 4.207035232},  # 下巴宽度(mm)
     "chin_angle": {"mean": 133.9166, "std": 6.860110089},  # 下巴角度(°)
-    # 面部聚散度
     "face_divergence": {"mean": 0.324128, "std": 0.017739459},  # 面部聚散度
 }
+
 
 
 def calculate_z_score(value, mean, std):
@@ -275,12 +260,98 @@ def extract_face_features(image_path, detector, gender):
         
     except Exception as e:
         return None, f"处理失败: {str(e)}"
+""" 获得美人脸分值 """
+def beauty_face_score(gender,beauty_cols_name):
+    beauty_face = {}
+    if gender == "female":
+        beauty_face = {
+           "top": -0.1035,
+           "mid": -0.0480,
+           "down": 0.0848,
+           "dist_r_out_ratio": 0.1083,
+           "eye_dist_ratio": -0.1669,
+           "face_len": 0.1169,
+           "forehead_width": -0.2671,
+           "zygomatic": -0.3018,
+           "mandible_width": -0.1759,
+           "mandible_angle": 0.1427,
+           "fwhr": -0.2571,
+           "golden_angle": -0.1936,
+           "eyebrow_h": -0.3252,
+           "eyebrow_w": 0.0417,
+           "eyebrow_area": -0.0815,
+           "eyebrow_thick": -0.3634,
+           "eyebrow_tilt": 0.7502,
+           "eyebrow_curvature": 1.5107,
+           "eye_length": 0.4953,
+           "eye_width": 0.5685,
+           "eye_area": 0.6588,
+           "inner_eye_angle": 0.5126,
+           "relative_eye_area": 0.5759,
+           "eyelid_tilt": -0.459,
+           "nose_ala": -0.0442,
+           "philtrum_length": -0.0782,
+           "lip_h": 0.05,
+           "lip_w": 0.0535,
+           "lip_thick": 0.4085,
+           "lip_area": 0.3443,
+           "mouth_angle": 0.4494,
+           "chin_len": 0.0399,
+           "chin_width": -0.2343,
+           "chin_angle": -0.1725,
+           "face_divergence": -0.3511,
+           "综合Z分数": 10.9
+        }
+    elif gender == "male":
+        beauty_face = {
+            "top": -0.0241,
+            "mid": -0.1940,
+            "down": 0.1362,
+            "dist_r_out_ratio": 0.4059,
+            "eye_dist_ratio": -0.4321,
+            "face_len": 0.3855,
+            "forehead_width": 0.1931,
+            "zygomatic": 0.1154,
+            "mandible_width": 0.0821,
+            "mandible_angle": 0.0433,
+            "fwhr": -0.1303,
+            "golden_angle": -0.4047,
+            "eyebrow_h": 0.1128,
+            "eyebrow_w": 0.1656,
+            "eyebrow_area": 0.2944,
+            "eyebrow_thick": -0.1894,
+            "eyebrow_tilt": 1.4286,
+            "eyebrow_curvature": 1.9053,
+            "eye_length": 0.2775,
+            "eye_width": 0.7607,
+            "eye_area": 0.7741,
+            "inner_eye_angle": 0.4720,
+            "relative_eye_area": 0.5970,
+            "eyelid_tilt": 0.0332,
+            "nose_ala": -0.2050,
+            "philtrum_length": 0.0516,
+            "lip_h": -0.1773,
+            "lip_w": 0.1091,
+            "lip_thick": 0.0662,
+            "lip_area": 0.0850,
+            "mouth_angle": 0.5327,
+            "chin_len": 0.5574,
+            "chin_width": 0.0448,
+            "chin_angle": -0.3671,
+            "face_divergence": -0.2287,
+            "综合Z分数":10.5143
+        }
+    return beauty_face[beauty_cols_name]
 
-def generate_ideal_face(z_scores):
+def generate_ideal_face(gender,z_scores):
     """根据Z分数生成理想人脸特征向量"""
     ideal_features = {}
     for feature_name, z_score in z_scores.items():
-        ideal_features[feature_name] = z_score * (1/3)
+        # 上庭占比Z分数
+        if feature_name not in ["top", "eyebrow_h", "eyebrow_w","eyebrow_area","eyebrow_thick","eyebrow_tilt","eyebrow_curvature","eye_length","eye_width","eye_area"]:  # 不为 eye、mouth、face 时跳过
+                continue
+        # ideal_features[feature_name] = z_score * (1/3)
+        ideal_features[feature_name] = beauty_face_score(gender,feature_name) + (0 - z_score) * (1/3)
     return ideal_features
 
 def calculate_euclidean_distance(features1, features2):
@@ -389,7 +460,7 @@ if __name__ == "__main__":
     print("✅ 理想人脸特征提取完成")
     
     # 2. 生成理想人脸特征向量
-    ideal_face_features = generate_ideal_face(ideal_z_scores)
+    ideal_face_features = generate_ideal_face(folder_gender,ideal_z_scores)
     print("✅ 理想人脸向量生成完成")
     
     # 3. 处理文件夹中的所有图片（使用文件夹性别）

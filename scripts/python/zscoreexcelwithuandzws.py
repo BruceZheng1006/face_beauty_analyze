@@ -857,45 +857,73 @@ if __name__ == "__main__":
             # ========== 新增：计算并添加统计行 ==========
             # 1. 筛选需要统计的Z分数列（排除文本列）
             z_score_cols = [col for col in df.columns if "Z分数" in col and col != "综合Z分数"]
-            # 2. 计算统计量（均值、中位数、标准差、方差，按逻辑顺序排列）
-            mean_vals = df[z_score_cols].mean().round(4)  # 均值，保留4位小数
-            median_vals = df[z_score_cols].median().round(4)  # 中位数，保留4位小数
-            mean_median_vals = ((mean_vals + median_vals) / 2).round(4)
-            std_vals = df[z_score_cols].std().round(4)    # 标准差，保留4位小数
-            var_vals = df[z_score_cols].var().round(4)    # 方差，保留4位小数
 
-            # 3. 构造统计行字典（补充文本列信息，按统计量逻辑顺序排列）
+            # ----- 新增：修剪均值函数 -----
+            def trimmed_mean(series):
+                """去掉一个最大值和一个最小值后的均值，若样本数<3则返回NaN"""
+                if series.count() < 3:
+                    return np.nan
+                sorted_vals = series.dropna().sort_values()
+                trimmed = sorted_vals.iloc[1:-1]  # 去掉首尾
+                return trimmed.mean().round(4)
+            # ------------------------------
+
+            # 2. 计算统计量（均值、中位数、均值&中位数均值、标准差、方差）
+            mean_vals = df[z_score_cols].mean().round(4)
+            median_vals = df[z_score_cols].median().round(4)
+            mean_median_vals = ((mean_vals + median_vals) / 2).round(4)
+            std_vals = df[z_score_cols].std().round(4)
+            var_vals = df[z_score_cols].var().round(4)
+
+            # ----- 新增：计算修剪均值 -----
+            trimmed_mean_vals = {}
+            for col in z_score_cols:
+                trimmed_mean_vals[col] = trimmed_mean(df[col])
+            # 单独处理综合Z分数列
+            trimmed_mean_vals["综合Z分数"] = trimmed_mean(df["综合Z分数"])
+            # ------------------------------
+
+            # 3. 构造统计行字典（补充文本列信息）
             mean_row = {"照片序号": "统计", "照片名称": "均值", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
             median_row = {"照片序号": "统计", "照片名称": "中位数", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
-            mean_median_row = {"照片序号": "统计", "照片名称": "均值和中位数的均值", "照片路径": "-", "性别": gender,
-                               "处理状态": "统计行"}
+            mean_median_row = {"照片序号": "统计", "照片名称": "均值和中位数的均值", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
             std_row = {"照片序号": "统计", "照片名称": "标准差", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
             var_row = {"照片序号": "统计", "照片名称": "方差", "照片路径": "-", "性别": gender, "处理状态": "统计行"}
 
             # 4. 填充Z分数列的统计值
             mean_row.update(mean_vals.to_dict())
-            median_row.update(median_vals.to_dict())  # 填充中位数数值
-            mean_median_row.update(mean_median_vals.to_dict())  # 填充均值和中位数的均值
+            median_row.update(median_vals.to_dict())
+            mean_median_row.update(mean_median_vals.to_dict())
             std_row.update(std_vals.to_dict())
             var_row.update(var_vals.to_dict())
 
             # 5. 补充综合Z分数的统计
             mean_row["综合Z分数"] = df["综合Z分数"].mean().round(4)
-            median_row["综合Z分数"] = df["综合Z分数"].median().round(4)  # 综合Z分数的中位数
-            mean_median_row["综合Z分数"] = ((df["综合Z分数"].mean() + df["综合Z分数"].median()) / 2).round(
-                4)  # 综合Z分数的均值和中位数的均值
+            median_row["综合Z分数"] = df["综合Z分数"].median().round(4)
+            mean_median_row["综合Z分数"] = ((df["综合Z分数"].mean() + df["综合Z分数"].median()) / 2).round(4)
             std_row["综合Z分数"] = df["综合Z分数"].std().round(4)
             var_row["综合Z分数"] = df["综合Z分数"].var().round(4)
 
-            # 6. 追加统计行到DataFrame（空行分隔原始数据和统计行）
-            # 先加一行空行
+            # ----- 新增：构建“去掉最高最低后的均值”行 -----
+            trimmed_mean_row = {
+                "照片序号": "统计",
+                "照片名称": "去掉最高最低后的均值",
+                "照片路径": "-",
+                "性别": gender,
+                "处理状态": "统计行"
+            }
+            trimmed_mean_row.update(trimmed_mean_vals)  # 已包含综合Z分数
+            # --------------------------------------------
+
+            # 6. 追加统计行到DataFrame（先空行，再统计行）
             empty_row = pd.Series([None] * len(df.columns), index=df.columns)
             df = pd.concat([df, pd.DataFrame([empty_row])], ignore_index=True)
-            # 再加统计行（按均值→中位数→标准差→方差的逻辑顺序）
+            # 将统计行（均值→中位数→均值&中位数均值→标准差→方差→修剪均值）一起添加
             df = pd.concat([
                 df,
-                pd.DataFrame([mean_row, median_row, mean_median_row, std_row, var_row])
+                pd.DataFrame([mean_row, median_row, mean_median_row, std_row, var_row, trimmed_mean_row])
             ], ignore_index=True)
+            # ===================================================
 
             if gender == "female":
                 beauty_row = {
